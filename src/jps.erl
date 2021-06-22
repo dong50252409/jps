@@ -8,9 +8,10 @@
 search(StartGrid, EndGrid, ValidFun) ->
     Score = f(StartGrid, EndGrid),
     OpenGrids = add_grid(Score, StartGrid, [], gb_trees:empty()),
-    do_search(EndGrid, ValidFun, OpenGrids).
+    CloseGrids = #{},
+    do_search(EndGrid, ValidFun, OpenGrids, CloseGrids).
 
-do_search(EndGrid, ValidFun, OpenGrids) ->
+do_search(EndGrid, ValidFun, OpenGrids, CloseGrids) ->
     case gb_trees:is_empty(OpenGrids) of
         true ->
             none;
@@ -19,12 +20,12 @@ do_search(EndGrid, ValidFun, OpenGrids) ->
                 {{_, EndGrid}, Path, _OpenGrids1} ->
                     [EndGrid | Path];
                 {{_Score, Grid}, Path, OpenGrids1} ->
-                    io:format("do_search Score:~w Grid:~w ParentGrid:~w~n", [_Score, Grid, Path]),
+                    CloseGrids1 = CloseGrids#{Grid => ture},
                     Directions = direction(Grid, Path),
-                    NeighbourGrids = search_neighbour_girds(EndGrid, ValidFun, Grid, Directions, []),
+                    NeighbourGrids = search_neighbour_girds(EndGrid, ValidFun, Grid, CloseGrids1, Directions, []),
                     OpenGrids2 = add_neighbour_girds(EndGrid, NeighbourGrids, [Grid | Path], OpenGrids1),
-                    draw_map(OpenGrids2),
-                    do_search(EndGrid, ValidFun, OpenGrids2)
+%%                    draw_map(OpenGrids2),
+                    do_search(EndGrid, ValidFun, OpenGrids2, CloseGrids1)
             end
     end.
 
@@ -59,44 +60,44 @@ direction({_X1, Y1}, [{_X2, Y2} | _]) ->
             [{-1, -1}]
     end.
 
-search_neighbour_girds(EndGrid, ValidFun, ParentGrid, [Direction | T], NeighbourGrids) ->
-    NeighbourGrids1 = search_neighbour_grids_1(EndGrid, ValidFun, ParentGrid, Direction, NeighbourGrids),
-    search_neighbour_girds(EndGrid, ValidFun, ParentGrid, T, NeighbourGrids1);
-search_neighbour_girds(_EndGrid, _ValidFun, _ParentGrid, [], NeighbourGrids) ->
+search_neighbour_girds(EndGrid, ValidFun, ParentGrid, CloseGrids, [Direction | T], NeighbourGrids) ->
+    NeighbourGrids1 = search_neighbour_grids_1(EndGrid, ValidFun, ParentGrid, CloseGrids, Direction, NeighbourGrids),
+    search_neighbour_girds(EndGrid, ValidFun, ParentGrid, CloseGrids, T, NeighbourGrids1);
+search_neighbour_girds(_EndGrid, _ValidFun, _ParentGrid, _CloseGrids, [], NeighbourGrids) ->
     NeighbourGrids.
 
-search_neighbour_grids_1(EndGrid, ValidFun, {X, Y}, {XOffset, YOffset} = Direction, NeighbourGrids) ->
+search_neighbour_grids_1(EndGrid, ValidFun, {X, Y}, CloseGrids, {XOffset, YOffset} = Direction, NeighbourGrids) ->
     case {X + XOffset, Y + YOffset} of
         EndGrid ->
             [EndGrid | NeighbourGrids];
         NextGrid ->
-            case ValidFun(NextGrid) of
+            case not maps:is_key(NextGrid, CloseGrids) andalso ValidFun(NextGrid) of
                 true ->
-                    search_neighbour_grids_2(EndGrid, ValidFun, NextGrid, Direction, NeighbourGrids);
+                    search_neighbour_grids_2(EndGrid, ValidFun, NextGrid, CloseGrids, Direction, NeighbourGrids);
                 false ->
                     NeighbourGrids
             end
     end.
 
-search_neighbour_grids_2(EndGrid, ValidFun, Grid, Direction, NeighbourGrids)
+search_neighbour_grids_2(EndGrid, ValidFun, Grid, CloseGrids, Direction, NeighbourGrids)
     when element(1, Direction) =:= 0; element(2, Direction) =:= 0 ->
     case check_neighbour_grid(Grid, ValidFun, Direction) of
         true ->
             [Grid | NeighbourGrids];
         false ->
-            search_neighbour_grids_1(EndGrid, ValidFun, Grid, Direction, NeighbourGrids)
+            search_neighbour_grids_1(EndGrid, ValidFun, Grid, CloseGrids, Direction, NeighbourGrids)
     end;
 
-search_neighbour_grids_2(EndGrid, ValidFun, Grid, {XOffset, YOffset} = Direction, NeighbourGrids) ->
+search_neighbour_grids_2(EndGrid, ValidFun, Grid, CloseGrids, {XOffset, YOffset} = Direction, NeighbourGrids) ->
     case check_neighbour_grid(Grid, ValidFun, Direction) of
         true ->
             [Grid | NeighbourGrids];
         false ->
-            case search_neighbour_grids_1(EndGrid, ValidFun, Grid, {XOffset, 0}, []) of
+            case search_neighbour_grids_1(EndGrid, ValidFun, Grid, CloseGrids, {XOffset, 0}, []) of
                 [] ->
-                    case search_neighbour_grids_1(EndGrid, ValidFun, Grid, {0, YOffset}, []) of
+                    case search_neighbour_grids_1(EndGrid, ValidFun, Grid, CloseGrids, {0, YOffset}, []) of
                         [] ->
-                            search_neighbour_grids_1(EndGrid, ValidFun, Grid, Direction, NeighbourGrids);
+                            search_neighbour_grids_1(EndGrid, ValidFun, Grid, CloseGrids, Direction, NeighbourGrids);
                         _ ->
                             [Grid | NeighbourGrids]
                     end;
@@ -140,13 +141,12 @@ g({X1, Y1}, {X2, Y2}) ->
     end.
 
 h({X1, Y1}, {X2, Y2}) ->
-    X3 = X2 - X1,
-    Y3 =  Y2 - Y1,
-    trunc(math:sqrt(X3 * X3 + Y3 * Y3) * 10).
-%%    (erlang:abs(X1 - X2) + erlang:abs(Y1 - Y2)) * 10.
+%%    X3 = X2 - X1,
+%%    Y3 = Y2 - Y1,
+%%    trunc(math:sqrt(X3 * X3 + Y3 * Y3) * 10).
+    (erlang:abs(X1 - X2) + erlang:abs(Y1 - Y2)) * 10.
 
 add_grid(Score, Grid, Path, OpenGrids) ->
-    io:format("add_grid Score:~w Grid:~w ParentGrid:~w~n", [Score, Grid, Path]),
     gb_trees:insert({Score, Grid}, Path, OpenGrids).
 %%============================================================
 %% TEST
