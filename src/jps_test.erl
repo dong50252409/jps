@@ -1,39 +1,46 @@
 -module(jps_test).
 
 %% API
+-export([test/3]).
 -export([gen_map/3]).
 
+test(Row, Col, BlockNum) ->
+    WorldMap = gen_map(Row, Col, BlockNum),
+    io:format("~w~n", [WorldMap]),
+    Fun =
+        fun({X, Y}) ->
+            X > 0 andalso X =< Row
+                andalso Y > 0 andalso Y =< Col
+                andalso element(X, element(Y, WorldMap)) =/= $X
+        end,
+    Path = jps:search({1, 1}, {Row, Col}, Fun),
+    draw_map(Row, Path, WorldMap).
+
 gen_map(Row, Col, BlockNum) ->
-    BlockSets = gen_block(Row, Col, BlockNum, sets:new()),
-    draw_map(Row, Col, BlockSets).
+    WorldMap = list_to_tuple(lists:duplicate(Col, list_to_tuple(lists:duplicate(Row, $ )))),
+    gen_block(Row, Col, BlockNum, WorldMap).
 
-gen_block(Row, Col, BlockNum, BlockSets) when BlockNum > 0 ->
-    BlockGrid = {rand:uniform(Row), rand:uniform(Col)},
-    case sets:is_element(BlockGrid, BlockSets) of
+gen_block(Row, Col, BlockNum, WorldMap) when BlockNum > 0 ->
+    {X, Y} = {rand:uniform(Row), rand:uniform(Col)},
+    C = element(Y, WorldMap),
+    case element(X, C) =/= $X of
         true ->
-            gen_block(Row, Col, BlockNum, BlockSets);
+            WorldMap1 = setelement(Y, WorldMap, setelement(X, C, $X)),
+            gen_block(Row, Col, BlockNum - 1, WorldMap1);
         false ->
-            gen_block(Row, Col, BlockNum - 1, sets:add_element(BlockGrid, BlockSets))
+            gen_block(Row, Col, BlockNum, WorldMap)
     end;
-gen_block(_Row, _Col, _BlockNum, BlockSets) ->
-    BlockSets.
+gen_block(_Row, _Col, _BlockNum, WorldMap) ->
+    WorldMap.
 
-draw_map(Row, Col, BlockSets) ->
-    Border = lists:duplicate(Row, "X") ++ "X\n",
-    io:format("~ts", [["X", Border | [draw_map_1(Row, Col, BlockSets) | Border]]]),
-    BlockSets.
+draw_map(Width, Path, WorldMap) ->
+    WorldMap1 = draw_map_path(Path, WorldMap),
+    Border = io_lib:format("~s~n", [lists:duplicate(Width + 2, $X)]),
+    Str = [io_lib:format("X~sX~n", [tuple_to_list(Row)]) || Row <- tuple_to_list(WorldMap1)],
+    io:format("~s~n", [[Border, Str, Border]]).
 
-draw_map_1(Row, Col, BlockSets) when Col > 0 ->
-    ["X", draw_map_2(Row, Col, BlockSets) | draw_map_1(Row, Col - 1, BlockSets)];
-draw_map_1(_Row, _Col, _BlockSets) ->
-    ["X"].
-
-draw_map_2(Row, Col, BlockSets) when Row > 0 ->
-    case sets:is_element({Row, Col}, BlockSets) of
-        true ->
-            [$X | draw_map_2(Row - 1, Col, BlockSets)];
-        false ->
-            [" " | draw_map_2(Row - 1, Col, BlockSets)]
-    end;
-draw_map_2(_Row, _Col, _BlockSets) ->
-    ["X\n"].
+draw_map_path([{X, Y} | T], WorldMap) ->
+    WorldMap1 = setelement(Y, WorldMap, setelement(X, element(Y, WorldMap), $o)),
+    draw_map_path(T, WorldMap1);
+draw_map_path(_, WorldMap) ->
+    WorldMap.
