@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 03. 7月 2021 11:03
 %%%-------------------------------------------------------------------
--module(jsp_4).
+-module(jps_4).
 -author("gz1417").
 
 %% API
@@ -22,14 +22,15 @@
 )).
 
 search(StartGrid, EndGrid, ValidFun) ->
-    OpenGrids = add_open_grid(0, StartGrid, 0, gb_trees:empty()),
+    Score = h(StartGrid, EndGrid),
+    OpenGrids = add_open_grid(Score, StartGrid, 0, gb_trees:empty()),
     ClosedGirds = #{},
-    ParentGrids = #{StartGrid => true},
+    ParentGrids = #{},
     case do_search(EndGrid, ValidFun, OpenGrids, ClosedGirds, ParentGrids) of
         none ->
             none;
         {EndGrid, ParentGrids1} ->
-            get_full_path(EndGrid, ParentGrids1)
+            get_full_path(EndGrid, ParentGrids1, [])
     end.
 
 do_search(EndGrid, ValidFun, OpenGrids, ClosedGirds, ParentGrids) ->
@@ -42,10 +43,11 @@ do_search(EndGrid, ValidFun, OpenGrids, ClosedGirds, ParentGrids) ->
                     {EndGrid, ParentGrids};
                 {{_Score, Grid}, G, OpenGrids1} ->
                     ClosedGirds1 = ClosedGirds#{Grid => true},
-                    ParentGrid = maps:get(Grid, ParentGrids),
+                    ParentGrid = maps:get(Grid, ParentGrids, none),
                     Directions = direction(Grid, ParentGrid, ValidFun),
                     NeighbourGrids = get_neighbour_girds(Grid, EndGrid, ValidFun, ClosedGirds1, Directions, []),
                     {OpenGrids2, ParentGrids1} = add_neighbour_girds(EndGrid, Grid, G, OpenGrids1, ParentGrids, NeighbourGrids),
+                    jps:draw_map(OpenGrids2),
                     do_search(EndGrid, ValidFun, OpenGrids2, ClosedGirds1, ParentGrids1)
             end
     end.
@@ -56,10 +58,10 @@ get_neighbour_girds(Grid, EndGrid, ValidFun, ClosedGrids, [Direction | T], Neigh
 get_neighbour_girds(_Grid, _EndGrid, _ValidFun, _ClosedGrids, [], NeighbourGrids) ->
     NeighbourGrids.
 
-get_neighbour_girds_1({X, Y} = Grid, EndGrid, ValidFun, ClosedGrids, {XDirection, YDirection} = Direction, NeighbourGrids) ->
+get_neighbour_girds_1({X, Y}, EndGrid, ValidFun, ClosedGrids, {XDirection, YDirection} = Direction, NeighbourGrids) ->
     case {X + XDirection, Y + YDirection} of
         EndGrid ->
-            [Grid | NeighbourGrids];
+            [EndGrid | NeighbourGrids];
         NextGrid ->
             case is_not_close(NextGrid, ClosedGrids) andalso ValidFun(NextGrid) of
                 true ->
@@ -69,15 +71,17 @@ get_neighbour_girds_1({X, Y} = Grid, EndGrid, ValidFun, ClosedGrids, {XDirection
             end
     end.
 
-get_neighbour_girds_2({X, Y} = Grid, EndGrid, ValidFun, CloseGrids, {_XDirection, 0} = Direction, NeighbourGrids) ->
-    case not ValidFun({X, Y + 1}) orelse not ValidFun({X, Y - 1}) of
+get_neighbour_girds_2({X, Y} = Grid, EndGrid, ValidFun, CloseGrids, {XDirection, 0} = Direction, NeighbourGrids) ->
+    case ValidFun({X + XDirection, Y}) andalso ((not ValidFun({X, Y + 1}) andalso ValidFun({X + XDirection, Y + 1}))
+        orelse (not ValidFun({X, Y - 1}) andalso ValidFun({X + XDirection, Y - 1}))) of
         true ->
             [Grid | NeighbourGrids];
         false ->
             get_neighbour_girds_1(Grid, EndGrid, ValidFun, CloseGrids, Direction, NeighbourGrids)
     end;
-get_neighbour_girds_2({X, Y} = Grid, EndGrid, ValidFun, CloseGrids, {0, _YDirection} = Direction, NeighbourGrids) ->
-    case not ValidFun({X + 1, Y}) orelse not ValidFun({X - 1, Y}) of
+get_neighbour_girds_2({X, Y} = Grid, EndGrid, ValidFun, CloseGrids, {0, YDirection} = Direction, NeighbourGrids) ->
+    case ValidFun({X, Y + YDirection}) andalso ((not ValidFun({X + 1, Y}) andalso ValidFun({X + 1, Y + YDirection}))
+        orelse (not ValidFun({X - 1, Y}) andalso ValidFun({X - 1, Y + YDirection}))) of
         true ->
             [Grid | NeighbourGrids];
         false ->
@@ -109,35 +113,35 @@ get_neighbour_girds_2({X, Y} = Grid, EndGrid, ValidFun, CloseGrids, {XDirection,
             NeighbourGrids
     end.
 
-direction(Grid, Grid, _ValidFun) ->
+direction(_Grid, none, _ValidFun) ->
     [{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}];
 direction({X1, Y1}, {X1, Y2}, ValidFun) ->
     YDirection = ?IF(Y1 > Y2, 1, -1),
     Directions1 = ?IF(ValidFun({X1 + 1, Y1}), [], [{1, YDirection}]),
-    Directions2 = ?IF(ValidFun(X1 - 1, Y1), Directions1, [{-1, YDirection} | Directions1]),
+    Directions2 = ?IF(ValidFun({X1 - 1, Y1}), Directions1, [{-1, YDirection} | Directions1]),
     [{0, YDirection} | Directions2];
 direction({X1, Y1}, {X2, Y1}, ValidFun) ->
     XDirection = ?IF(X1 > X2, 1, -1),
     Directions1 = ?IF(ValidFun({X1, Y1 + 1}), [], [{XDirection, 1}]),
-    Directions2 = ?IF(ValidFun(X1, Y1 - 1), Directions1, [{XDirection, -1} | Directions1]),
+    Directions2 = ?IF(ValidFun({X1, Y1 - 1}), Directions1, [{XDirection, -1} | Directions1]),
     [{XDirection, 0} | Directions2];
 direction({X1, Y1}, {X2, Y2}, ValidFun) ->
     XDirection = ?IF(X1 > X2, 1, -1),
     YDirection = ?IF(Y1 > Y2, 1, -1),
     Directions1 = ?IF(ValidFun({X1 - XDirection, Y1}), [], [{-XDirection, YDirection}]),
-    Directions2 = ?IF(ValidFun({X1, Y1 - YDirection}), [], [{XDirection, -YDirection} | Directions1]),
-    [{XDirection, YDirection}, {XDirection, 0}, {YDirection, 0} | Directions2].
+    Directions2 = ?IF(ValidFun({X1, Y1 - YDirection}), Directions1, [{XDirection, -YDirection} | Directions1]),
+    [{XDirection, YDirection}, {XDirection, 0}, {0, YDirection} | Directions2].
 
 is_not_close(Grid, ClosedGrids) ->
     case ClosedGrids of
-        #{Grid => _} ->
+        #{Grid := _} ->
             false;
         _ ->
             true
     end.
 
 add_neighbour_girds(EndGrid, ParentGrid, G, OpenGrids, ParentGrids, [Grid | T]) ->
-    G1 = G + g(Grid, EndGrid),
+    G1 = G + g(Grid, ParentGrid),
     Score = G1 + h(Grid, EndGrid),
     OpenGrids1 = add_open_grid(Score, Grid, G1, OpenGrids),
     ParentGrids1 = ParentGrids#{Grid => ParentGrid},
@@ -146,29 +150,35 @@ add_neighbour_girds(_EndGrid, _ParentGrid, _G, OpenGrids, ParentGrids, []) ->
     {OpenGrids, ParentGrids}.
 
 g({X1, Y1}, {X2, Y2}) ->
-    X3 = erlang:abs(X1 - X2),
-    Y3 = erlang:abs(Y1 - Y2),
-    case X3 > Y3 of
-        true ->
-            14 * Y3 + 10 * (X3 - Y3);
-        false ->
-            14 * X3 + 10 * (Y3 - X3)
-    end.
+    DX = X2 - X1,
+    DY = Y2 - Y1,
+    trunc(math:sqrt(DX * DX + DY * DY) * 10).
+%%    X3 = erlang:abs(X1 - X2),
+%%    Y3 = erlang:abs(Y1 - Y2),
+%%    case X3 > Y3 of
+%%        true ->
+%%            14 * Y3 + 10 * (X3 - Y3);
+%%        false ->
+%%            14 * X3 + 10 * (Y3 - X3)
+%%    end.
 
 h({X1, Y1}, {X2, Y2}) ->
-%%    X3 = X2 - X1,
-%%    Y3 = Y2 - Y1,
-%%    trunc(math:sqrt(X3 * X3 + Y3 * Y3) * 10).
-    (erlang:abs(X1 - X2) + erlang:abs(Y1 - Y2)) * 10.
+    DX = X2 - X1,
+    DY = Y2 - Y1,
+    trunc(math:sqrt(DX * DX + DY * DY) * 10).
+%%    (erlang:abs(X1 - X2) + erlang:abs(Y1 - Y2)) * 10.
+%%    DX = erlang:abs(X1 - X2),
+%%    DY = erlang:abs(Y1 - Y2),
+%%    erlang:trunc((DX + DY + -0.5857864376269049 * erlang:min(DX, DY)) * 10).
 
 
 add_open_grid(Score, Grid, G, OpenGrids) ->
     gb_trees:insert({Score, Grid}, G, OpenGrids).
 
-get_full_path(Grid, ParentGrids) ->
+get_full_path(Grid, ParentGrids, Path) ->
     case ParentGrids of
         #{Grid := ParentGrid} ->
-            [ParentGrid | get_full_path(ParentGrid, ParentGrids)];
+            get_full_path(ParentGrid, ParentGrids, [Grid | Path]);
         _ ->
-            []
+            Path
     end.

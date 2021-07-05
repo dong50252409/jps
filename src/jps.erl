@@ -163,7 +163,7 @@ test() ->
             X =< 10 andalso Y =< 10 andalso 0 < X andalso 0 < Y
                 andalso element(X, element(Y, Map)) =:= 32
         end,
-    search({1, 1}, {1, 10}, ValidFun).
+    jps_4:search({1, 1}, {1, 10}, ValidFun).
 
 take(OpenGrids, Map) ->
     case gb_trees:is_empty(OpenGrids) of
