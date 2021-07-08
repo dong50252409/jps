@@ -1,34 +1,38 @@
 -module(jps_test).
 
 %% API
--export([test/3]).
+-export([test/4]).
 -export([gen_map/3]).
 
-test(Row, Col, BlockNum) ->
-    WorldMap = gen_map(Row, Col, BlockNum),
+test(Row, Col, BlockNum, Times) ->
     Fun =
-        fun({X, Y}) ->
-            X > 0 andalso X =< Row andalso Y > 0 andalso Y =< Col
-                andalso element(X, element(Y, WorldMap)) =/= $X
+        fun(_) ->
+            WorldMap = gen_map(Row, Col, BlockNum),
+            Fun =
+                fun({X, Y}) ->
+                    X > 0 andalso X =< Row andalso Y > 0 andalso Y =< Col
+                        andalso element(X, element(Y, WorldMap)) =/= $X
+                end,
+%%            test_1({1, 1}, {Row, Col}, WorldMap, Fun, Row),
+%%            test_1({1, 1}, {1, Col}, WorldMap, Fun, Row),
+            test_1({1, 1}, {Row, 1}, WorldMap, Fun, Row)
+%%    test_1({1, 1}, {Row, Col}, WorldMap, Fun, Row)
         end,
-%%    test_1({1, 1}, {Row, Col}, WorldMap, Fun, Row),
-%%    test_1({1, 1}, {1, Col}, WorldMap, Fun, Row),
-%%    test_1({1, 1}, {Row, 1}, WorldMap, Fun, Row).
-    test_1({1, 1}, {Row, Col}, WorldMap, Fun, Row).
+    lists:foreach(Fun, lists:seq(1, Times)).
 
 test_1(Start, End, WorldMap, Fun, Row) ->
     put(map, WorldMap),
     io:format("Start:~w End:~w~n", [Start, End]),
     try
-        case jps_2:search(Start, End, Fun) of
+        case jps:search(Start, End, Fun, []) of
             none ->
                 io:format("~w~n", [WorldMap]),
                 draw_map(Row, [], WorldMap),
                 none;
             Path ->
-                io:format("PointPath:~w~n", [Path]),
-                draw_map(Row, Path, WorldMap),
-                FullPath = jps_2:get_full_path(Start, Path),
+%%                io:format("PointPath:~w~n", [Path]),
+%%                draw_map(Row, Path, WorldMap),
+                {full_path, FullPath} = jps:get_full_path(Path),
                 io:format("FullPath:~w~n", [FullPath]),
                 draw_map(Row, FullPath, WorldMap)
         end
@@ -43,14 +47,18 @@ gen_map(Row, Col, BlockNum) ->
     gen_block(Row, Col, BlockNum, WorldMap).
 
 gen_block(Row, Col, BlockNum, WorldMap) when BlockNum > 0 ->
-    {X, Y} = {rand:uniform(Row), rand:uniform(Col)},
-    C = element(Y, WorldMap),
-    case element(X, C) =/= $X of
-        true ->
-            WorldMap1 = setelement(Y, WorldMap, setelement(X, C, $X)),
-            gen_block(Row, Col, BlockNum - 1, WorldMap1);
-        false ->
-            gen_block(Row, Col, BlockNum, WorldMap)
+    case {rand:uniform(Row), rand:uniform(Col)} of
+        XY when XY =:= {1, 1}; XY =:= {Row, 1}; XY =:= {1, Col}; XY =:= {Row, Col} ->
+            gen_block(Row, Col, BlockNum, WorldMap);
+        {X, Y} ->
+            C = element(Y, WorldMap),
+            case element(X, C) =/= $X of
+                true ->
+                    WorldMap1 = setelement(Y, WorldMap, setelement(X, C, $X)),
+                    gen_block(Row, Col, BlockNum - 1, WorldMap1);
+                false ->
+                    gen_block(Row, Col, BlockNum, WorldMap)
+            end
     end;
 gen_block(_Row, _Col, _BlockNum, WorldMap) ->
     WorldMap.
