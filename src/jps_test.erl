@@ -1,45 +1,38 @@
 -module(jps_test).
 
 %% API
--export([test/4]).
--export([gen_map/3]).
+-export([gen_world_maps/4, test/3]).
 
-test(Row, Col, BlockNum, Times) ->
-    test_1({1, 1}, [{Row, 1}, {1, Col}, {Row, Col}], Row, Col, BlockNum, Times).
+gen_world_maps(Row, Col, BlockNum, Times) ->
+    WorldMaps = [gen_map(Row, Col, BlockNum) || _ <- lists:seq(1, Times)],
+    file:write_file("wold_maps.data", term_to_binary(WorldMaps)).
 
-test_1(Start, EndList, Row, Col, BlockNum, Times) when Times > 0 ->
-    WorldMap = gen_map(Row, Col, BlockNum),
+test(Row, Col, IsShow) ->
+    {ok, Data} = file:read_file("wold_maps.data"),
+    WorldMaps = binary_to_term(Data),
+    {Time, _Value} = timer:tc(fun() -> test_1({1, 1}, {Row, Col}, Row, Col, WorldMaps, IsShow) end),
+    Time.
+
+test_1(Start, End, Row, Col, [WorldMap | T], IsShow) ->
     Fun =
         fun({X, Y}) ->
             X > 0 andalso X =< Row andalso Y > 0 andalso Y =< Col
                 andalso element(X, element(Y, WorldMap)) =/= $X
         end,
-    put(map, WorldMap),
-    try
-        lists:foreach(
-            fun(End) ->
-                io:format("Start:~w End:~w~n", [Start, End]),
-                case jps:search(Start, End, Fun, []) of
-                    {jump_points, Path} ->
-%%                io:format("PointPath:~w~n", [Path]),
-%%                draw_map(Row, Path, WorldMap),
-                        {full_path, FullPath} = jps:get_full_path(Path),
-                        io:format("FullPath:~w~n", [FullPath]),
-                        draw_map(Row, FullPath, WorldMap);
-                    Other ->
-                        io:format("~w~n", [WorldMap]),
-                        draw_map(Row, [], WorldMap),
-                        Other
-                end
-            end,
-            EndList),
-        test_1(Start, EndList, Row, Col, BlockNum, Times - 1)
-    catch
-        Err:Reason:Trace ->
-            io:format("~w~n", [WorldMap]),
-            {Err, Reason, Trace}
-    end;
-test_1(_Start, _End, _Row, _Col, _BlockNum, _Times) ->
+    case jps:search(Start, End, Fun, []) of
+        {jump_points, Path} ->
+            {full_path, FullPath} = jps:get_full_path(Path);
+        _Other ->
+            FullPath = []
+    end,
+    case IsShow of
+        true ->
+            draw_map(Row, FullPath, WorldMap);
+        false ->
+            ok
+    end,
+    test_1(Start, End, Row, Col, T, IsShow);
+test_1(_Start, _End, _Row, _Col, [], _IsShow) ->
     ok.
 
 gen_map(Row, Col, BlockNum) ->
