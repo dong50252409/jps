@@ -27,13 +27,12 @@
 search(StartGrid, EndGrid, ValidFun, Options) ->
     OpenGrids = gb_trees:empty(),
     ClosedGrids = #{},
-    ParentGrids = #{},
     Directions = [{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}],
     JumpGrids = get_jump_grids(EndGrid, ValidFun, StartGrid, ClosedGrids, Directions),
-    {OpenGrids1, ClosedGrids1, ParentGrids1} = add_jump_grids(EndGrid, StartGrid, 0, OpenGrids, ClosedGrids, ParentGrids, JumpGrids),
+    {OpenGrids1, ClosedGrids1} = add_jump_grids(EndGrid, StartGrid, 0, [StartGrid], OpenGrids, ClosedGrids, JumpGrids),
     draw_map(OpenGrids1),
     MaxLimit = proplists:get_value(max_limit, Options, ?DEFAULT_MAX_LIMIT),
-    do_search(EndGrid, ValidFun, OpenGrids1, ClosedGrids1, ParentGrids1, MaxLimit).
+    do_search(EndGrid, ValidFun, OpenGrids1, ClosedGrids1, MaxLimit).
 
 
 -spec get_full_path(JumpPoints :: [grid()]) -> {full_path, Path :: [grid()]}.
@@ -44,23 +43,23 @@ get_full_path(JumpPoints) ->
 %%%======================================================================
 %%% Internal Functions
 %%%======================================================================
-do_search(EndGrid, ValidFun, OpenGrids, ClosedGrids, ParentGrids, MaxLimit) when MaxLimit > 0 ->
+do_search(EndGrid, ValidFun, OpenGrids, ClosedGrids, MaxLimit) when MaxLimit > 0 ->
     case take_grid(OpenGrids) of
         none ->
             none;
-        {EndGrid, _G, _OpenGrids1} ->
-            {jump_points, get_point_path(EndGrid, ParentGrids, [])};
-        {Grid, G, OpenGrids1} ->
-            ParentGrid = maps:get(Grid, ParentGrids),
+        {EndGrid, _G, Path, _OpenGrids1} ->
+            {jump_points, [EndGrid | Path]};
+        {Grid, G, Path, OpenGrids1} ->
+            ParentGrid = hd(Path),
             Directions = get_directions(ValidFun, Grid, ParentGrid),
             io:format("Directions:~w~n", [Directions]),
             io:format("take_grid Grid:~w ParentGrid:~w G:~w~n", [Grid, ParentGrid, G]),
             JumpGrids = get_jump_grids(EndGrid, ValidFun, Grid, ClosedGrids, Directions),
-            {OpenGrids2, ClosedGrids1, ParentGrids1} = add_jump_grids(EndGrid, Grid, G, OpenGrids1, ClosedGrids, ParentGrids, JumpGrids),
+            {OpenGrids2, ClosedGrids1} = add_jump_grids(EndGrid, Grid, G, [Grid | Path], OpenGrids1, ClosedGrids, JumpGrids),
             draw_map(OpenGrids2),
-            do_search(EndGrid, ValidFun, OpenGrids2, ClosedGrids1, ParentGrids1, MaxLimit - 1)
+            do_search(EndGrid, ValidFun, OpenGrids2, ClosedGrids1, MaxLimit - 1)
     end;
-do_search(_EndGrid, _ValidFun, _OpenGrids, _ClosedGrids, _ParentGrids, _MaxLimit) ->
+do_search(_EndGrid, _ValidFun, _OpenGrids, _ClosedGrids, _MaxLimit) ->
     max_limited.
 
 take_grid(OpenGrids) ->
@@ -68,8 +67,8 @@ take_grid(OpenGrids) ->
         true ->
             none;
         false ->
-            {{_Score, Grid}, G, OpenGrids1} = gb_trees:take_smallest(OpenGrids),
-            {Grid, G, OpenGrids1}
+            {{_Score, Grid}, {G, Path}, OpenGrids1} = gb_trees:take_smallest(OpenGrids),
+            {Grid, G, Path, OpenGrids1}
     end.
 
 get_directions(ValidFun, Grid, ParentGrid) ->
@@ -184,16 +183,15 @@ check_jump_grid(ValidFun, {X, Y}, DX, DY) ->
     ValidFun({X, Y + DY}) andalso ValidFun({X - DX, Y + DY}) andalso not ValidFun({X - DX, Y})
         orelse ValidFun({X + DX, Y}) andalso ValidFun({X + DX, Y - DY}) andalso not ValidFun({X, Y - DY}).
 
-add_jump_grids(EndGrid, ParentGrid, G, OpenGrids, ClosedGrids, ParentGrids, [Grid | T]) ->
+add_jump_grids(EndGrid, ParentGrid, G, Path, OpenGrids, ClosedGrids, [Grid | T]) ->
     G1 = G + g(Grid, ParentGrid),
     Score = G1 + h(Grid, EndGrid),
     io:format("add_grids Score:~w,Grid:~w,G1:~w~n", [Score, Grid, G1]),
-    OpenGrids1 = gb_trees:insert({Score, Grid}, G1, OpenGrids),
+    OpenGrids1 = gb_trees:insert({Score, Grid}, {G1, Path}, OpenGrids),
     ClosedGrids1 = ClosedGrids#{Grid => true},
-    ParentGrids1 = ParentGrids#{Grid => {Score, ParentGrid}},
-    add_jump_grids(EndGrid, ParentGrid, G, OpenGrids1, ClosedGrids1, ParentGrids1, T);
-add_jump_grids(_EndGrid, _ParentGrid, _G, OpenGrids, ClosedGrids, ParentGrids, []) ->
-    {OpenGrids, ClosedGrids, ParentGrids}.
+    add_jump_grids(EndGrid, ParentGrid, G, Path, OpenGrids1, ClosedGrids1, T);
+add_jump_grids(_EndGrid, _ParentGrid, _G, _Path, OpenGrids, ClosedGrids, []) ->
+    {OpenGrids, ClosedGrids}.
 
 g({X1, Y1}, {X2, Y2}) ->
     X3 = erlang:abs(X1 - X2),
@@ -207,14 +205,6 @@ g({X1, Y1}, {X2, Y2}) ->
 
 h({X1, Y1}, {X2, Y2}) ->
     (erlang:abs(X1 - X2) + erlang:abs(Y1 - Y2)) * 10.
-
-get_point_path(Grid, ParentGrids, JumpPoints) ->
-    case ParentGrids of
-        #{Grid := ParentGrid} ->
-            get_point_path(Grid, ParentGrid, [Grid | JumpPoints]);
-        #{} ->
-            [Grid | JumpPoints]
-    end.
 
 get_full_path_1([Grid1, Grid2 | T], Path) ->
     {DX, DY} = get_direction(Grid2, Grid1),

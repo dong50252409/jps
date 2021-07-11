@@ -1,14 +1,14 @@
-{application, jps,
- [{description, "An OTP library"},
-  {vsn, "0.1.0"},
-  {registered, []},
-  {applications,
-   [kernel,
-    stdlib
-   ]},
-  {env,[]},
-  {modules, []},
+{application, jps, [
+    {description, "Jump point search implement of Erlang"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib
+    ]},
+    {env, []},
+    {modules, []},
 
-  {licenses, ["Apache 2.0"]},
-  {links, []}
- ]}.
+    {licenses, ["Apache 2.0"]},
+    {links, []}
+]}.

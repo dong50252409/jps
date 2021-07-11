@@ -5,42 +5,42 @@
 -export([gen_map/3]).
 
 test(Row, Col, BlockNum, Times) ->
-    Fun =
-        fun(_) ->
-            WorldMap = gen_map(Row, Col, BlockNum),
-            Fun =
-                fun({X, Y}) ->
-                    X > 0 andalso X =< Row andalso Y > 0 andalso Y =< Col
-                        andalso element(X, element(Y, WorldMap)) =/= $X
-                end,
-%%            test_1({1, 1}, {Row, Col}, WorldMap, Fun, Row),
-%%            test_1({1, 1}, {1, Col}, WorldMap, Fun, Row),
-            test_1({1, 1}, {Row, 1}, WorldMap, Fun, Row)
-%%    test_1({1, 1}, {Row, Col}, WorldMap, Fun, Row)
-        end,
-    lists:foreach(Fun, lists:seq(1, Times)).
+    test_1({1, 1}, [{Row, 1}, {1, Col}, {Row, Col}], Row, Col, BlockNum, Times).
 
-test_1(Start, End, WorldMap, Fun, Row) ->
+test_1(Start, EndList, Row, Col, BlockNum, Times) when Times > 0 ->
+    WorldMap = gen_map(Row, Col, BlockNum),
+    Fun =
+        fun({X, Y}) ->
+            X > 0 andalso X =< Row andalso Y > 0 andalso Y =< Col
+                andalso element(X, element(Y, WorldMap)) =/= $X
+        end,
     put(map, WorldMap),
-    io:format("Start:~w End:~w~n", [Start, End]),
     try
-        case jps:search(Start, End, Fun, []) of
-            none ->
-                io:format("~w~n", [WorldMap]),
-                draw_map(Row, [], WorldMap),
-                none;
-            Path ->
+        lists:foreach(
+            fun(End) ->
+                io:format("Start:~w End:~w~n", [Start, End]),
+                case jps:search(Start, End, Fun, []) of
+                    {jump_points, Path} ->
 %%                io:format("PointPath:~w~n", [Path]),
 %%                draw_map(Row, Path, WorldMap),
-                {full_path, FullPath} = jps:get_full_path(Path),
-                io:format("FullPath:~w~n", [FullPath]),
-                draw_map(Row, FullPath, WorldMap)
-        end
+                        {full_path, FullPath} = jps:get_full_path(Path),
+                        io:format("FullPath:~w~n", [FullPath]),
+                        draw_map(Row, FullPath, WorldMap);
+                    Other ->
+                        io:format("~w~n", [WorldMap]),
+                        draw_map(Row, [], WorldMap),
+                        Other
+                end
+            end,
+            EndList),
+        test_1(Start, EndList, Row, Col, BlockNum, Times - 1)
     catch
-        Err:Reason ->
+        Err:Reason:Trace ->
             io:format("~w~n", [WorldMap]),
-            throw({Err, Reason})
-    end.
+            {Err, Reason, Trace}
+    end;
+test_1(_Start, _End, _Row, _Col, _BlockNum, _Times) ->
+    ok.
 
 gen_map(Row, Col, BlockNum) ->
     WorldMap = list_to_tuple(lists:duplicate(Col, list_to_tuple(lists:duplicate(Row, $ )))),
