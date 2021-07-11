@@ -20,12 +20,10 @@
     end
 )).
 
-%%%======================================================================
-%%% API Functions
-%%%======================================================================
+
 -spec search(StartGrid :: grid(), EndGrid :: grid(), ValidFun :: fun((grid()) -> boolean()), Options :: options()) -> result().
 search(StartGrid, EndGrid, ValidFun, Options) ->
-    OpenGrids = new(),
+    OpenGrids = gb_trees:empty(),
     VisitedGrids = #{},
     Directions = [{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}],
     JumpGrids = get_jump_grids(EndGrid, ValidFun, StartGrid, VisitedGrids, Directions),
@@ -44,23 +42,33 @@ get_full_path(JumpPoints) ->
 %%% Internal Functions
 %%%======================================================================
 do_search(EndGrid, ValidFun, OpenGrids, VisitedGrids, MaxLimit) when MaxLimit > 0 ->
-    case take_min(OpenGrids) of
-        empty ->
+    case take_grid(OpenGrids, VisitedGrids) of
+        none ->
             none;
-        {{EndGrid, _G, Path}, _OpenGrids1} ->
+        {EndGrid, _G, Path, _OpenGrids1, _VisitedGrids1} ->
             {jump_points, lists:reverse([EndGrid | Path])};
-        {{Grid, G, Path}, OpenGrids1} ->
+        {Grid, G, Path, OpenGrids1, VisitedGrids1} ->
             ParentGrid = hd(Path),
             Directions = get_directions(ValidFun, Grid, ParentGrid),
 %%            io:format("Directions:~w~n", [Directions]),
 %%            io:format("take_grid Grid:~w ParentGrid:~w G:~w~n", [Grid, ParentGrid, G]),
-            JumpGrids = get_jump_grids(EndGrid, ValidFun, Grid, VisitedGrids, Directions),
-            {OpenGrids2, VisitedGrids1} = add_jump_grids(EndGrid, Grid, G, [Grid | Path], OpenGrids1, VisitedGrids, JumpGrids),
+            JumpGrids = get_jump_grids(EndGrid, ValidFun, Grid, VisitedGrids1, Directions),
+            {OpenGrids2, VisitedGrids2} = add_jump_grids(EndGrid, Grid, G, [Grid | Path], OpenGrids1, VisitedGrids1, JumpGrids),
 %%            draw_map(OpenGrids2),
-            do_search(EndGrid, ValidFun, OpenGrids2, VisitedGrids1, MaxLimit - 1)
+            do_search(EndGrid, ValidFun, OpenGrids2, VisitedGrids2, MaxLimit - 1)
     end;
 do_search(_EndGrid, _ValidFun, _OpenGrids, _VisitedGrids, _MaxLimit) ->
     max_limited.
+
+take_grid(OpenGrids, VisitedGrids) ->
+    case gb_trees:is_empty(OpenGrids) of
+        true ->
+            none;
+        false ->
+            {{_Score, Grid}, {G, Path}, OpenGrids1} = gb_trees:take_smallest(OpenGrids),
+            VisitedGrids1 = VisitedGrids#{Grid := -1},
+            {Grid, G, Path, OpenGrids1, VisitedGrids1}
+    end.
 
 get_directions(ValidFun, Grid, ParentGrid) ->
     {DX, DY} = get_direction(Grid, ParentGrid),
@@ -106,7 +114,7 @@ get_jump_gird(EndGrid, ValidFun, VisitedGrids, {X, Y}, DX, DY) ->
         EndGrid ->
             ?IF(ValidFun(EndGrid), EndGrid, none);
         {X1, Y1} = NeighbourGrid ->
-            case not maps:is_key(NeighbourGrid, VisitedGrids) andalso ValidFun(NeighbourGrid) of
+            case maps:get(NeighbourGrid, VisitedGrids, 0) > -1 andalso ValidFun(NeighbourGrid) of
                 true when DX =/= 0, DY =/= 0 ->
                     ?IF(ValidFun({X1, Y}) orelse ValidFun({X, Y1}),
                         get_jump_grid_1(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, DX, DY), none);
@@ -117,6 +125,7 @@ get_jump_gird(EndGrid, ValidFun, VisitedGrids, {X, Y}, DX, DY) ->
                     none
             end
     end.
+
 
 get_jump_grid_1(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, DX, DY) when DX =:= 0; DY =:= 0 ->
     case check_jump_grid(ValidFun, NeighbourGrid, DX, DY) of
@@ -148,10 +157,20 @@ check_jump_grid(ValidFun, {X, Y}, DX, DY) ->
 add_jump_grids(EndGrid, ParentGrid, G, Path, OpenGrids, VisitedGrids, [Grid | T]) ->
     G1 = G + g(Grid, ParentGrid),
     Score = G1 + h(Grid, EndGrid),
+    case VisitedGrids of
+        #{Grid := OldScore} when OldScore =< Score ->
+            OpenGrids2 = OpenGrids,
+            VisitedGrids1 = VisitedGrids;
+        #{Grid := OldScore} when OldScore > Score ->
+            OpenGrids1 = gb_trees:delete({OldScore, Grid}, OpenGrids),
+            OpenGrids2 = gb_trees:insert({Score, Grid}, {G1, Path}, OpenGrids1),
+            VisitedGrids1 = VisitedGrids#{Grid => Score};
+        _ ->
+            OpenGrids2 = gb_trees:insert({Score, Grid}, {G1, Path}, OpenGrids),
+            VisitedGrids1 = VisitedGrids#{Grid => Score}
+    end,
 %%    io:format("add_grids Score:~w,Grid:~w,G1:~w~n", [Score, Grid, G1]),
-    OpenGrids1 = insert(Score, {Grid, G1, Path}, OpenGrids),
-    VisitedGrids1 = VisitedGrids#{Grid => true},
-    add_jump_grids(EndGrid, ParentGrid, G, Path, OpenGrids1, VisitedGrids1, T);
+    add_jump_grids(EndGrid, ParentGrid, G, Path, OpenGrids2, VisitedGrids1, T);
 add_jump_grids(_EndGrid, _ParentGrid, _G, _Path, OpenGrids, VisitedGrids, []) ->
     {OpenGrids, VisitedGrids}.
 
@@ -182,37 +201,6 @@ get_full_path_2({X, Y}, Grid2, DX, DY, Path) ->
         Grid ->
             get_full_path_2(Grid, Grid2, DX, DY, [Grid | Path])
     end.
-
-%%======================================
-%% pairs_heap implement
-%%======================================
-new() ->
-    {}.
-
-insert(K, V, Heap) ->
-    do_merge({K, V, []}, Heap).
-
-take_min({}) ->
-    empty;
-take_min({_, V, SubHeaps}) ->
-    {V, merge_pairs(SubHeaps)}.
-
-do_merge(Heap1, {}) ->
-    Heap1;
-do_merge({}, Heap2) ->
-    Heap2;
-do_merge({K1, V1, SubHeap1}, Heap2) when K1 < element(1, Heap2) ->
-    {K1, V1, [Heap2 | SubHeap1]};
-do_merge(Heap1, {K2, V2, SubHeap2}) ->
-    {K2, V2, [Heap1 | SubHeap2]}.
-
-merge_pairs([SH1, SH2 | Rest]) ->
-    do_merge(do_merge(SH1, SH2), merge_pairs(Rest));
-merge_pairs([SubHeap]) ->
-    SubHeap;
-merge_pairs([]) ->
-    {}.
-
 %%============================================================
 %% TEST
 %%============================================================

@@ -5,12 +5,15 @@
 
 gen_world_maps(Row, Col, BlockNum, Times) ->
     WorldMaps = [gen_map(Row, Col, BlockNum) || _ <- lists:seq(1, Times)],
-    file:write_file("wold_maps.data", term_to_binary(WorldMaps)).
+    file:write_file("world_maps.data", term_to_binary(WorldMaps)).
 
 test(Row, Col, IsShow) ->
-    {ok, Data} = file:read_file("wold_maps.data"),
+    {ok, Data} = file:read_file("world_maps.data"),
     WorldMaps = binary_to_term(Data),
+    {ok, IO} = file:open("world_maps.out", [write]),
+    put(io, IO),
     {Time, _Value} = timer:tc(fun() -> test_1({1, 1}, {Row, Col}, Row, Col, WorldMaps, IsShow) end),
+    file:close(IO),
     Time.
 
 test_1(Start, End, Row, Col, [WorldMap | T], IsShow) ->
@@ -60,7 +63,7 @@ draw_map(Width, Path, WorldMap) ->
     WorldMap1 = draw_map_path(Path, WorldMap),
     Border = io_lib:format("~s~n", [lists:duplicate(Width + 2, $X)]),
     Str = [io_lib:format("X~sX~n", [tuple_to_list(Row)]) || Row <- tuple_to_list(WorldMap1)],
-    io:format("~s~n", [[Border, Str, Border]]).
+    io:format(get(io), "~s~n", [[Border, Str, Border]]).
 
 draw_map_path([{X, Y} | T], WorldMap) ->
     WorldMap1 = setelement(Y, WorldMap, setelement(X, element(Y, WorldMap), $o)),
