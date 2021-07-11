@@ -30,7 +30,7 @@ search(StartGrid, EndGrid, ValidFun, Options) ->
     Directions = [{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}],
     JumpGrids = get_jump_grids(EndGrid, ValidFun, StartGrid, ClosedGrids, Directions),
     {OpenGrids1, ClosedGrids1} = add_jump_grids(EndGrid, StartGrid, 0, [StartGrid], OpenGrids, ClosedGrids, JumpGrids),
-    draw_map(OpenGrids1),
+%%    draw_map(OpenGrids1),
     MaxLimit = proplists:get_value(max_limit, Options, ?DEFAULT_MAX_LIMIT),
     do_search(EndGrid, ValidFun, OpenGrids1, ClosedGrids1, MaxLimit).
 
@@ -52,11 +52,11 @@ do_search(EndGrid, ValidFun, OpenGrids, ClosedGrids, MaxLimit) when MaxLimit > 0
         {Grid, G, Path, OpenGrids1} ->
             ParentGrid = hd(Path),
             Directions = get_directions(ValidFun, Grid, ParentGrid),
-            io:format("Directions:~w~n", [Directions]),
-            io:format("take_grid Grid:~w ParentGrid:~w G:~w~n", [Grid, ParentGrid, G]),
+%%            io:format("Directions:~w~n", [Directions]),
+%%            io:format("take_grid Grid:~w ParentGrid:~w G:~w~n", [Grid, ParentGrid, G]),
             JumpGrids = get_jump_grids(EndGrid, ValidFun, Grid, ClosedGrids, Directions),
             {OpenGrids2, ClosedGrids1} = add_jump_grids(EndGrid, Grid, G, [Grid | Path], OpenGrids1, ClosedGrids, JumpGrids),
-            draw_map(OpenGrids2),
+%%            draw_map(OpenGrids2),
             do_search(EndGrid, ValidFun, OpenGrids2, ClosedGrids1, MaxLimit - 1)
     end;
 do_search(_EndGrid, _ValidFun, _OpenGrids, _ClosedGrids, _MaxLimit) ->
@@ -186,7 +186,7 @@ check_jump_grid(ValidFun, {X, Y}, DX, DY) ->
 add_jump_grids(EndGrid, ParentGrid, G, Path, OpenGrids, ClosedGrids, [Grid | T]) ->
     G1 = G + g(Grid, ParentGrid),
     Score = G1 + h(Grid, EndGrid),
-    io:format("add_grids Score:~w,Grid:~w,G1:~w~n", [Score, Grid, G1]),
+%%    io:format("add_grids Score:~w,Grid:~w,G1:~w~n", [Score, Grid, G1]),
     OpenGrids1 = gb_trees:insert({Score, Grid}, {G1, Path}, OpenGrids),
     ClosedGrids1 = ClosedGrids#{Grid => true},
     add_jump_grids(EndGrid, ParentGrid, G, Path, OpenGrids1, ClosedGrids1, T);
@@ -223,6 +223,7 @@ get_full_path_2({X, Y}, Grid2, DX, DY, Path) ->
 %%============================================================
 %% TEST
 %%============================================================
+-ifdef(TEST).
 -compile(export_all).
 test(Start, End, Map) ->
     put(map, Map),
@@ -255,3 +256,4 @@ draw_map(OpenGrids) ->
         end,
     _ = lists:foldl(Fun, 1, tuple_to_list(Map1)),
     io:format("  XXXXXXXXXXXX~n").
+-endif.
