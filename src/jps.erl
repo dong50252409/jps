@@ -23,12 +23,13 @@
 
 -spec search(StartGrid :: grid(), EndGrid :: grid(), ValidFun :: fun((grid()) -> boolean()), Options :: options()) -> result().
 search(StartGrid, EndGrid, ValidFun, Options) ->
+    DirectionsFun = directions_fun(ValidFun),
     G = 0,
     Score = G + h(StartGrid, EndGrid),
     OpenGrids = gb_trees:insert({Score, StartGrid}, {G, []}, gb_trees:empty()),
     VisitedGrids = #{StartGrid => G},
     MaxLimit = proplists:get_value(max_limit, Options, ?DEFAULT_MAX_LIMIT),
-    do_search(EndGrid, ValidFun, OpenGrids, VisitedGrids, MaxLimit).
+    do_search(EndGrid, ValidFun, DirectionsFun, OpenGrids, VisitedGrids, MaxLimit).
 
 -spec get_full_path(JumpPoints :: [grid()]) -> {full_path, Path :: [grid()]}.
 get_full_path(JumpPoints) ->
@@ -38,7 +39,7 @@ get_full_path(JumpPoints) ->
 %%%======================================================================
 %%% Internal Functions
 %%%======================================================================
-do_search(EndGrid, ValidFun, OpenGrids, VisitedGrids, MaxLimit) when MaxLimit > 0 ->
+do_search(EndGrid, ValidFun, DirectionsFun, OpenGrids, VisitedGrids, MaxLimit) when MaxLimit > 0 ->
 %%    draw_map(OpenGrids),
     case gb_trees:is_empty(OpenGrids) of
         true ->
@@ -48,37 +49,39 @@ do_search(EndGrid, ValidFun, OpenGrids, VisitedGrids, MaxLimit) when MaxLimit > 
                 {{_Score, EndGrid}, {_G, Path}, _OpenGrids1} ->
                     {jump_points, lists:reverse([EndGrid | Path])};
                 {{_Score, Grid}, {G, Path}, OpenGrids1} ->
-                    Directions = get_directions(ValidFun, Grid, Path),
+                    Directions = DirectionsFun(Grid, Path),
 %%                    io:format("take_grid Grid:~w ParentGrid:~w G:~w~n Directions:~w~n", [Grid, ParentGrid, G, Directions]),
                     VisitedGrids1 = VisitedGrids#{Grid := -1},
                     JumpGrids = get_jump_grids(EndGrid, ValidFun, Grid, VisitedGrids1, Directions),
                     {OpenGrids2, VisitedGrids2} = add_jump_grids(EndGrid, Grid, G, [Grid | Path], OpenGrids1, VisitedGrids1, JumpGrids),
-                    do_search(EndGrid, ValidFun, OpenGrids2, VisitedGrids2, MaxLimit - 1)
+                    do_search(EndGrid, ValidFun, DirectionsFun, OpenGrids2, VisitedGrids2, MaxLimit - 1)
             end
     end;
-do_search(_EndGrid, _ValidFun, _OpenGrids, _VisitedGrids, _MaxLimit) ->
+do_search(_EndGrid, _ValidFun, _DirectionsFun, _OpenGrids, _VisitedGrids, _MaxLimit) ->
     max_limited.
 
-get_directions(ValidFun, Grid, [ParentGrid | _]) ->
-    {DX, DY} = get_direction(Grid, ParentGrid),
-    directions_1(ValidFun, Grid, DX, DY);
-get_directions(_ValidFun, _Grid, []) ->
-    [{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}].
-
-directions_1(ValidFun, {X, Y}, DX, 0) ->
-    NeighbourGirds = [{DX, 0}],
-    NeighbourGirds1 = ?IF(ValidFun({X, Y + 1}), NeighbourGirds, [{DX, 1} | NeighbourGirds]),
-    ?IF(ValidFun({X, Y - 1}), NeighbourGirds1, [{DX, -1} | NeighbourGirds1]);
-directions_1(ValidFun, {X, Y}, 0, DY) ->
-    NeighbourGirds = [{0, DY}],
-    NeighbourGirds1 = ?IF(ValidFun({X + 1, Y}), NeighbourGirds, [{1, DY} | NeighbourGirds]),
-    ?IF(ValidFun({X - 1, Y}), NeighbourGirds1, [{-1, DY} | NeighbourGirds1]);
-directions_1(ValidFun, {X, Y}, DX, DY) ->
-    NeighbourGirds1 = ?IF(ValidFun({X, Y + DY}), [{0, DY}], []),
-    NeighbourGirds2 = ?IF(ValidFun({X + DX, Y}), [{DX, 0} | NeighbourGirds1], NeighbourGirds1),
-    NeighbourGirds3 = ?IF(ValidFun({X + DX, Y + DY}), [{DX, DY} | NeighbourGirds2], NeighbourGirds2),
-    NeighbourGirds4 = ?IF(ValidFun({X - DX, Y}), NeighbourGirds3, [{-DX, DY} | NeighbourGirds3]),
-    ?IF(ValidFun({X, Y - DY}), NeighbourGirds4, [{DX, -DY} | NeighbourGirds4]).
+directions_fun(ValidFun) ->
+    fun
+        ({X, Y} = Grid, [ParentGrid | _]) ->
+            case get_direction(Grid, ParentGrid) of
+                {DX, 0} ->
+                    NeighbourGirds = [{DX, 0}],
+                    NeighbourGirds1 = ?IF(ValidFun({X, Y + 1}), NeighbourGirds, [{DX, 1} | NeighbourGirds]),
+                    ?IF(ValidFun({X, Y - 1}), NeighbourGirds1, [{DX, -1} | NeighbourGirds1]);
+                {0, DY} ->
+                    NeighbourGirds = [{0, DY}],
+                    NeighbourGirds1 = ?IF(ValidFun({X + 1, Y}), NeighbourGirds, [{1, DY} | NeighbourGirds]),
+                    ?IF(ValidFun({X - 1, Y}), NeighbourGirds1, [{-1, DY} | NeighbourGirds1]);
+                {DX, DY} ->
+                    NeighbourGirds1 = ?IF(ValidFun({X, Y + DY}), [{0, DY}], []),
+                    NeighbourGirds2 = ?IF(ValidFun({X + DX, Y}), [{DX, 0} | NeighbourGirds1], NeighbourGirds1),
+                    NeighbourGirds3 = ?IF(ValidFun({X + DX, Y + DY}), [{DX, DY} | NeighbourGirds2], NeighbourGirds2),
+                    NeighbourGirds4 = ?IF(ValidFun({X - DX, Y}), NeighbourGirds3, [{-DX, DY} | NeighbourGirds3]),
+                    ?IF(ValidFun({X, Y - DY}), NeighbourGirds4, [{DX, -DY} | NeighbourGirds4])
+            end;
+        (_Grid, []) ->
+            [{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}]
+    end.
 
 get_direction({X1, Y1}, {X2, Y2}) ->
     {get_direction_1(X1, X2), get_direction_1(Y1, Y2)}.
