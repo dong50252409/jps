@@ -25,7 +25,7 @@ identity_successors(EndGrid, ValidFun, VisitedGrids, CurGrid, ParentGrid) ->
 directions(_CurGrid, parent) ->
     [{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}];
 directions(CurGrid, ParentGrid) ->
-    case util:get_direction(CurGrid, ParentGrid) of
+    case jps_util:get_direction(CurGrid, ParentGrid) of
         {DX, 0} ->
             [{DX, 0}, {DX, 1}, {DX, -1}];
         {0, DY} ->
@@ -49,7 +49,7 @@ do_jump_gird(EndGrid, ValidFun, VisitedGrids, {X, Y}, DX, DY) ->
         EndGrid ->
             ?IF(ValidFun(EndGrid), EndGrid, none);
         {X1, Y1} = NeighbourGrid ->
-            case util:is_open(NeighbourGrid, VisitedGrids) andalso ValidFun(NeighbourGrid) of
+            case jps_util:is_open(NeighbourGrid, VisitedGrids) andalso ValidFun(NeighbourGrid) of
                 true when DX =/= 0, DY =/= 0 ->
                     ?IF(ValidFun({X1, Y}) orelse ValidFun({X, Y1}),
                         jump_grid_1(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, DX, DY), none);
@@ -90,8 +90,8 @@ check_jump_grid(ValidFun, {X, Y}, DX, DY) ->
 
 -spec g(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> G :: number().
 g(Grid1, Grid2) ->
-    util:g(Grid1, Grid2).
+    jps_util:g(Grid1, Grid2).
 
 -spec h(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> H :: number().
 h(Grid1, Grid2) ->
-    util:h(Grid1, Grid2).
+    jps_util:h(Grid1, Grid2).
