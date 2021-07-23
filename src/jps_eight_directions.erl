@@ -19,19 +19,25 @@
     EndGrid :: jps:grid(), ValidFun :: jps:valid_fun(), VisitedGrids :: jps:visited_grids(),
     CurGrid :: jps:grid(), ParentGrid :: jps:grid(), JumpPoints :: [jps:grid()].
 identity_successors(EndGrid, ValidFun, VisitedGrids, CurGrid, ParentGrid) ->
-    Directions = directions(CurGrid, ParentGrid),
+    Directions = directions(ValidFun, CurGrid, ParentGrid),
     do_jump_points(EndGrid, ValidFun, VisitedGrids, CurGrid, Directions).
 
-directions(_CurGrid, parent) ->
+directions(_ValidFun, _CurGrid, parent) ->
     [{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}];
-directions(CurGrid, ParentGrid) ->
+directions(ValidFun, {X, Y} = CurGrid, ParentGrid) ->
     case jps_util:get_direction(CurGrid, ParentGrid) of
         {DX, 0} ->
-            [{DX, 0}, {DX, 1}, {DX, -1}];
+            Directions = [{DX, 0}],
+            Directions1 = ?IF(ValidFun({X, Y + 1}), Directions, [{DX, 1} | Directions]),
+            ?IF(ValidFun({X, Y - 1}), Directions1, [{DX, -1} | Directions]);
         {0, DY} ->
-            [{0, DY}, {1, DY}, {-1, DY}];
+            Directions = [{0, DY}],
+            Directions1 = ?IF(ValidFun({X + 1, Y}), Directions, [{1, DY} | Directions]),
+            ?IF(ValidFun({X - 1, Y}), Directions1, [{-1, DY} | Directions1]);
         {DX, DY} ->
-            [{0, DY}, {DX, 0}, {DX, DY}, {-DX, DY}, {DX, -DY}]
+            Directions = [{0, DY}, {DX, 0}, {DX, DY}],
+            Directions1 = ?IF(ValidFun({X - DX, Y}), Directions, [{-DX, DY} | Directions]),
+            ?IF(ValidFun({X, Y - DY}), Directions1, [{DX, -DY} | Directions1])
     end.
 
 do_jump_points(EndGrid, ValidFun, VisitedGrids, CurGrid, [{DX, DY} | T]) ->
@@ -79,14 +85,14 @@ jump_grid_1(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, DX, DY) ->
     end.
 
 check_jump_grid(ValidFun, {X, Y}, DX, 0) ->
-    ValidFun({X + DX, Y + 1}) andalso not ValidFun({X, Y + 1})
-        orelse ValidFun({X + DX, Y - 1}) andalso not ValidFun({X, Y - 1});
+    not ValidFun({X, Y + 1}) andalso ValidFun({X + DX, Y + 1})
+        orelse not ValidFun({X, Y - 1}) andalso ValidFun({X + DX, Y - 1});
 check_jump_grid(ValidFun, {X, Y}, 0, DY) ->
-    ValidFun({X + 1, Y + DY}) andalso not ValidFun({X + 1, Y})
-        orelse ValidFun({X - 1, Y + DY}) andalso not ValidFun({X - 1, Y});
+    not ValidFun({X + 1, Y}) andalso ValidFun({X + 1, Y + DY})
+        orelse not ValidFun({X - 1, Y}) andalso ValidFun({X - 1, Y + DY});
 check_jump_grid(ValidFun, {X, Y}, DX, DY) ->
-    (ValidFun({X, Y + DY}) andalso ValidFun({X - DX, Y + DY}) andalso not ValidFun({X - DX, Y}))
-        orelse (ValidFun({X + DX, Y}) andalso ValidFun({X + DX, Y - DY}) andalso not ValidFun({X, Y - DY})).
+    (not ValidFun({X - DX, Y}) andalso ValidFun({X, Y + DY}) andalso ValidFun({X - DX, Y + DY}))
+        orelse (not ValidFun({X, Y - DY}) andalso ValidFun({X + DX, Y}) andalso ValidFun({X + DX, Y - DY})).
 
 -spec g(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> G :: number().
 g(Grid1, Grid2) ->

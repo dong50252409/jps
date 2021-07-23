@@ -69,11 +69,11 @@ do_jump_gird_1(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, 0, DY) ->
     end.
 
 check_jump_grid(ValidFun, {X, Y}, DX, 0) ->
-    ValidFun({X, Y + 1}) andalso not ValidFun({X - DX, Y + 1})
-        orelse ValidFun({X, Y - 1}) andalso not ValidFun({X - DX, Y - 1});
+    not ValidFun({X - DX, Y + 1}) andalso ValidFun({X, Y + 1})
+        orelse not ValidFun({X - DX, Y - 1}) andalso ValidFun({X, Y - 1});
 check_jump_grid(ValidFun, {X, Y}, 0, DY) ->
-    ValidFun({X + 1, Y}) andalso not ValidFun({X + 1, Y - DY})
-        orelse ValidFun({X - 1, Y}) andalso not ValidFun({X - 1, Y - DY}).
+    not ValidFun({X + 1, Y - DY}) andalso ValidFun({X + 1, Y})
+        orelse not ValidFun({X - 1, Y - DY}) andalso ValidFun({X - 1, Y}).
 
 -spec g(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> G :: number().
 g(Grid1, Grid2) ->
