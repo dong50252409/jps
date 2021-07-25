@@ -24,7 +24,7 @@
 -type option() :: max_limit() |{jps_mod, module()}.
 -type options() :: [option()].
 
--callback(identity_successors(EndGrid :: grid(), ValidFun :: valid_fun(), VisitedGrids :: visited_grids(),
+-callback(identity_successors(EndGrid :: grid(), ValidFun :: valid_fun(),
     CurGrid :: grid(), ParentPath :: [grid()]) -> JumpPoints :: [grid()]).
 -callback(g(Grid1 :: grid(), Grid2 :: grid()) -> G :: number()).
 -callback(h(Grid1 :: grid(), Grid2 :: grid()) -> H :: number()).
@@ -37,7 +37,8 @@ search(StartGrid, EndGrid, ValidFun, Options) ->
     OpenGrids = gb_trees:empty(),
     VisitedGrids = #{StartGrid => -1},
     JPSMod = proplists:get_value(jps_mod, Options, jps_eight_directions),
-    JumpGrids = JPSMod:identity_successors(EndGrid, ValidFun, VisitedGrids, StartGrid, parent),
+    JumpGrids = JPSMod:identity_successors(EndGrid, ValidFun, StartGrid, parent),
+%%    draw_map(JumpGrids),
     {OpenGrids1, VisitedGrids1} = add_jump_grids(EndGrid, JPSMod, StartGrid, G, [StartGrid], OpenGrids, VisitedGrids, JumpGrids),
     MaxLimit = proplists:get_value(max_limit, Options, 16#FFFF),
     do_search(EndGrid, ValidFun, JPSMod, OpenGrids1, VisitedGrids1, MaxLimit).
@@ -51,7 +52,6 @@ get_full_path(JumpPoints) ->
 %%% Internal Functions
 %%%======================================================================
 do_search(EndGrid, ValidFun, JPSMod, OpenGrids, VisitedGrids, MaxLimit) when MaxLimit > 0 ->
-%%    jps_test:draw_map(OpenGrids),
     case gb_trees:is_empty(OpenGrids) of
         true ->
             none;
@@ -60,9 +60,10 @@ do_search(EndGrid, ValidFun, JPSMod, OpenGrids, VisitedGrids, MaxLimit) when Max
                 {{_Score, EndGrid}, {_G, ParentPath}, _OpenGrids1} ->
                     {jump_points, lists:reverse([EndGrid | ParentPath])};
                 {{_Score, Grid}, {G, ParentPath}, OpenGrids1} ->
-%%                    io:format("take_grid Grid:~w ParentGrid:~w G:~w~n~n", [Grid, hd(ParentPath), G]),
                     VisitedGrids1 = VisitedGrids#{Grid := -1},
-                    JumpGrids = JPSMod:identity_successors(EndGrid, ValidFun, VisitedGrids1, Grid, hd(ParentPath)),
+                    JumpGrids = JPSMod:identity_successors(EndGrid, ValidFun, Grid, hd(ParentPath)),
+%%                    io:format("take_grid Grid:~w ParentGrid:~w G:~w~n~n", [Grid, hd(ParentPath), G]),
+%%                    draw_map(JumpGrids),
                     {OpenGrids2, VisitedGrids2} = add_jump_grids(EndGrid, JPSMod, Grid, G, [Grid | ParentPath], OpenGrids1, VisitedGrids1, JumpGrids),
                     do_search(EndGrid, ValidFun, JPSMod, OpenGrids2, VisitedGrids2, MaxLimit - 1)
             end
@@ -113,92 +114,99 @@ get_full_path_2({X, Y}, Grid2, DX, DY, Path) ->
 
 -compile(export_all).
 
-test(Row, Col, BlockNum, Num, IsShow) ->
-    WorldMaps = [gen_map(Row, Col, BlockNum) || _ <- lists:seq(1, Num)],
-    file:write_file("world_maps.data", term_to_binary(WorldMaps)),
-    test_1(Row, Col, IsShow, WorldMaps).
+test(Width, High, BlockNum, Num, IsShow) ->
+    Mazes = [gen_map(Width, High, BlockNum) || _ <- lists:seq(1, Num)],
+    Str = io_lib:format("{mazes,~w}.", [Mazes]),
+    Str1 = string:replace(Str, <<"},">>, <<"},\n">>, all),
+    file:write_file("mazes.data", Str1),
+    test_1(IsShow, Mazes).
 
-test(Row, Col, IsShow) ->
-    {ok, Bin} = file:read_file("world_maps.data"),
-    WorldMaps = binary_to_term(Bin),
-    test_1(Row, Col, IsShow, WorldMaps).
+test(IsShow) ->
+    {ok, Data} = file:consult("mazes.data"),
+    Mazes = proplists:get_value(mazes, Data, []),
+    test_1(IsShow, Mazes).
 
-test_1(Row, Col, IsShow, WorldMaps) ->
-    {ok, IO} = file:open("world_maps.out", [write]),
+test_1(IsShow, Mazes) ->
+    {ok, IO} = file:open("draw_mazes.out", [write]),
     put(io, IO),
-    loop_world_map({1, 1}, {Row, Col}, Row, Col, WorldMaps, IsShow),
+    loop_mazes(Mazes, IsShow),
     file:close(IO).
 
-loop_world_map(Start, End, Row, Col, [WorldMap | T], IsShow) ->
-    put(world_map, WorldMap),
+loop_mazes([Maze | T], IsShow) ->
+    put(maze_map, Maze),
+    Width = size(element(1, Maze)),
+    High = size(Maze),
     Fun =
         fun({X, Y}) ->
-            X > 0 andalso X =< Row andalso Y > 0 andalso Y =< Col
-                andalso element(X, element(Y, WorldMap)) =/= $X
+            X > 0 andalso X =< Width andalso Y > 0 andalso Y =< High
+                andalso element(X, element(Y, Maze)) =/= 0
         end,
-    case jps:search(Start, End, Fun, [{jps_mod, jps_eight_directions}]) of
+    case jps:search({1, 1}, {Width, High}, Fun, [{jps_mod, jps_eight_directions}]) of
         {jump_points, Path} ->
             {full_path, FullPath} = jps:get_full_path(Path);
         _Other ->
             FullPath = []
     end,
-    IsShow andalso draw_map(Row, FullPath, WorldMap),
-    loop_world_map(Start, End, Row, Col, T, IsShow);
-loop_world_map(_Start, _End, _Row, _Col, [], _IsShow) ->
+    case IsShow of
+        true ->
+            {ok, IO} = file:open("draw_mazes.out", [write]),
+            draw_maze(IO, FullPath, Maze),
+            file:close(IO);
+        false ->
+            ok
+    end,
+    loop_mazes(T, IsShow);
+loop_mazes([], _IsShow) ->
     ok.
 
-gen_map(Row, Col, BlockNum) ->
-    WorldMap = list_to_tuple(lists:duplicate(Col, list_to_tuple(lists:duplicate(Row, $ )))),
-    gen_block(Row, Col, BlockNum, WorldMap).
+gen_map(Width, High, BlockNum) ->
+    BlockGrids = gen_block(Width, High, BlockNum),
+    Maze = list_to_tuple(lists:duplicate(High, list_to_tuple(lists:duplicate(Width, 1)))),
+    fill_block(BlockGrids, Maze).
 
-gen_block(Row, Col, BlockNum, WorldMap) when BlockNum > 0 ->
-    case {rand:uniform(Row), rand:uniform(Col)} of
-        XY when XY =:= {1, 1}; XY =:= {Row, 1}; XY =:= {1, Col}; XY =:= {Row, Col} ->
-            gen_block(Row, Col, BlockNum, WorldMap);
-        {X, Y} ->
-            C = element(Y, WorldMap),
-            case element(X, C) =/= $X of
-                true ->
-                    WorldMap1 = setelement(Y, WorldMap, setelement(X, C, $X)),
-                    gen_block(Row, Col, BlockNum - 1, WorldMap1);
-                false ->
-                    gen_block(Row, Col, BlockNum, WorldMap)
-            end
-    end;
-gen_block(_Row, _Col, _BlockNum, WorldMap) ->
-    WorldMap.
+gen_block(Width, High, BlockNum) ->
+    Grids = [{rand:uniform(), {X, Y}} || X <- lists:seq(1, Width), Y <- lists:seq(1, High)],
+    Grids1 = [Grid || {_, Grid} <- lists:sort(Grids)],
+    lists:sublist(Grids1, BlockNum).
 
-draw_map(Width, Path, WorldMap) ->
-    WorldMap1 = draw_map_path(Path, WorldMap),
+fill_block([{X, Y} | T], Maze) ->
+    Maze1 = setelement(Y, Maze, setelement(X, element(Y, Maze), 1)),
+    fill_block(T, Maze1);
+fill_block([], Maze) ->
+    Maze.
+
+draw_maze(IO, Path, Maze) ->
+    Width = size(element(1, Maze)),
+    Maze1 = draw_maze_path(Path, Maze),
     Border = io_lib:format("~s~n", [lists:duplicate(Width + 2, $X)]),
-    Str = [io_lib:format("X~sX~n", [tuple_to_list(Row)]) || Row <- tuple_to_list(WorldMap1)],
-    io:format(get(io), "~s~n", [[Border, Str, Border]]).
+    Str = draw_maze(tuple_to_list(Maze1)),
+    io:format(IO, "~s~n", [[Border, Str, Border]]).
 
-draw_map_path([{X, Y} | T], WorldMap) ->
-    WorldMap1 = setelement(Y, WorldMap, setelement(X, element(Y, WorldMap), $o)),
-    draw_map_path(T, WorldMap1);
-draw_map_path(_, WorldMap) ->
-    WorldMap.
+draw_maze([Width | T]) ->
+    [io_lib:format("X~sX~n", [lists:map(fun draw_maze_1/1, tuple_to_list(Width))]) | draw_maze(T)];
+draw_maze([]) ->
+    [].
 
-draw_map(OpenGrids) ->
-    Map1 = take(OpenGrids, get(world_map)),
-    put(world_map, Map1),
-    io:format("   12345678910~n"),
-    io:format("  XXXXXXXXXXXX~n"),
-    Fun =
-        fun(T, N) ->
-            io:format("~2wX~sX~n", [N, tuple_to_list(T)]),
-            N + 1
-        end,
-    _ = lists:foldl(Fun, 1, tuple_to_list(Map1)),
-    io:format("  XXXXXXXXXXXX~n").
+draw_maze_1(0) ->
+    $X;
+draw_maze_1(1) ->
+    " ";
+draw_maze_1(E) ->
+    E.
 
-take(OpenGrids, Map) ->
-    case gb_trees:is_empty(OpenGrids) of
-        true ->
-            Map;
-        false ->
-            {{_Score, {X, Y}}, _Parent, OpenGrids1} = gb_trees:take_smallest(OpenGrids),
-            take(OpenGrids1, setelement(Y, Map, setelement(X, element(Y, Map), $P)))
-    end.
+draw_maze_path([{X, Y} | T], Maze) ->
+    Maze1 = setelement(Y, Maze, setelement(X, element(Y, Maze), $o)),
+    draw_maze_path(T, Maze1);
+draw_maze_path(_, Maze) ->
+    Maze.
+
+draw_map(JumpGrids) ->
+    Map1 = draw_p(JumpGrids, get(maze_map)),
+    put(maze_map, Map1),
+    draw_maze(erlang:group_leader(), [], Map1).
+
+draw_p([{X, Y} | T], Maze) ->
+    draw_p(T, setelement(Y, Maze, setelement(X, element(Y, Maze), $P)));
+draw_p([], Maze) ->
+    Maze.
 -endif.

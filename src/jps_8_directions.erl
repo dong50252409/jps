@@ -13,33 +13,32 @@
 -include("jps.hrl").
 
 %% Callbacks API
--export([identity_successors/5, g/2, h/2]).
+-export([identity_successors/4, g/2, h/2]).
 
--spec identity_successors(EndGrid, ValidFun, VisitedGrids, CurGrid, ParentGrid) -> JumpPoints when
-    EndGrid :: jps:grid(), ValidFun :: jps:valid_fun(), VisitedGrids :: jps:visited_grids(),
+-spec identity_successors(EndGrid, ValidFun, CurGrid, ParentGrid) -> JumpPoints when
+    EndGrid :: jps:grid(), ValidFun :: jps:valid_fun(),
     CurGrid :: jps:grid(), ParentGrid :: jps:grid(), JumpPoints :: [jps:grid()].
-identity_successors(EndGrid, ValidFun, VisitedGrids, CurGrid, ParentGrid) ->
+identity_successors(EndGrid, ValidFun, CurGrid, ParentGrid) ->
     Neighbours = get_neighbours(ValidFun, CurGrid, ParentGrid),
     find_jump_grids(EndGrid, ValidFun, CurGrid, Neighbours).
 
 get_neighbours(ValidFun, {X, Y}, parent) ->
-    Up = ValidFun({X, Y + 1}),
-    Down = ValidFun({X, Y - 1}),
-    Left = ValidFun({X - 1, Y}),
-    Right = ValidFun({X + 1, Y}),
-    UpLeft = ValidFun({X - 1, Y + 1}),
-    UpRight = ValidFun({X + 1, Y + 1}),
-    DownLeft = ValidFun({X - 1, Y - 1}),
-    DownRight = ValidFun({X + 1, Y - 1}),
-    ?IF(Up, [{X, Y + 1}], []) ++ ?IF(Down, [{X, Y - 1}], []) ++ ?IF(Left, [{X - 1, Y}], []) ++ ?IF(Right, [{X + 1, Y}], [])
-        ++ ?IF(Up andalso Left andalso UpLeft, [{X - 1, Y + 1}], []) ++ ?IF(Up andalso Right andalso UpRight, [{X + 1, Y + 1}], [])
-        ++ ?IF(Down andalso Left andalso DownLeft, [{X - 1, Y - 1}], []) ++ ?IF(Down andalso Right andalso DownRight, [{X + 1, Y - 1}], []);
+    Up = ValidFun({X, Y + 1}), Down = ValidFun({X, Y - 1}),
+    Left = ValidFun({X - 1, Y}), Right = ValidFun({X + 1, Y}),
+    UpLeft = ValidFun({X - 1, Y + 1}), UpRight = ValidFun({X + 1, Y + 1}),
+    DownLeft = ValidFun({X - 1, Y - 1}), DownRight = ValidFun({X + 1, Y - 1}),
+    ?IF(Up, [{X, Y + 1}], []) ++ ?IF(Down, [{X, Y - 1}], [])
+        ++ ?IF(Left, [{X - 1, Y}], []) ++ ?IF(Right, [{X + 1, Y}], [])
+        ++ ?IF(Up andalso Left andalso UpLeft, [{X - 1, Y + 1}], [])
+        ++ ?IF(Up andalso Right andalso UpRight, [{X + 1, Y + 1}], [])
+        ++ ?IF(Down andalso Left andalso DownLeft, [{X - 1, Y - 1}], [])
+        ++ ?IF(Down andalso Right andalso DownRight, [{X + 1, Y - 1}], []);
 get_neighbours(ValidFun, {X, Y} = Grid, Parent) ->
     case jps_util:get_direction(Grid, Parent) of
         {DX, 0} ->
             ?IF(ValidFun({X + DX, Y}), [{X + DX, Y}], [])
             ++ ?IF(ValidFun({X, Y + 1}), [], [{X + DX, Y + 1}])
-                ++ ?IF(ValidFun({X, Y - 1}, [], [{X + DX, Y - 1}]));
+                ++ ?IF(ValidFun({X, Y - 1}), [], [{X + DX, Y - 1}]);
         {0, DY} ->
             ?IF(ValidFun({X, Y + DY}), [{X, Y + DY}], [])
             ++ ?IF(ValidFun({X + 1, Y}), [], [{X + 1, Y + DY}])
@@ -101,8 +100,8 @@ find_jump_grid(_EndGrid, ValidFun, ParentGrid, {X, Y} = Grid) ->
 
 -spec g(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> G :: number().
 g(Grid1, Grid2) ->
-    jps_util:g(Grid1, Grid2).
+    jps_heuristic:octile(Grid1, Grid2).
 
 -spec h(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> H :: number().
 h(Grid1, Grid2) ->
-    jps_util:h(Grid1, Grid2).
+    jps_heuristic:euclidean(Grid1, Grid2).

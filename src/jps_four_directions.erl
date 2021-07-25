@@ -13,14 +13,14 @@
 -include("jps.hrl").
 
 %% Callbacks API
--export([identity_successors/5, g/2, h/2]).
+-export([identity_successors/4, g/2, h/2]).
 
--spec identity_successors(EndGrid, ValidFun, VisitedGrids, CurGrid, ParentGrid) -> JumpPoints when
-    EndGrid :: jps:grid(), ValidFun :: jps:valid_fun(), VisitedGrids :: jps:visited_grids(),
+-spec identity_successors(EndGrid, ValidFun, CurGrid, ParentGrid) -> JumpPoints when
+    EndGrid :: jps:grid(), ValidFun :: jps:valid_fun(),
     CurGrid :: jps:grid(), ParentGrid :: jps:grid(), JumpPoints :: [jps:grid()].
-identity_successors(EndGrid, ValidFun, VisitedGrids, CurGrid, ParentGrid) ->
+identity_successors(EndGrid, ValidFun, CurGrid, ParentGrid) ->
     Directions = get_neighbours(CurGrid, ParentGrid),
-    do_jump_points(EndGrid, ValidFun, VisitedGrids, CurGrid, Directions).
+    do_jump_points(EndGrid, ValidFun, CurGrid, Directions).
 
 get_neighbours(_CurGrid, parent) ->
     [{1, 0}, {-1, 0}, {0, 1}, {0, -1}];
@@ -32,40 +32,39 @@ get_neighbours(CurGrid, ParentGrid) ->
             [{1, 0}, {-1, 0}, {0, DY}]
     end.
 
-do_jump_points(EndGrid, ValidFun, VisitedGrids, CurGrid, [{DX, DY} | T]) ->
-    case do_jump_gird(EndGrid, ValidFun, VisitedGrids, CurGrid, DX, DY) of
+do_jump_points(EndGrid, ValidFun, CurGrid, [{DX, DY} | T]) ->
+    case do_jump_gird(EndGrid, ValidFun, CurGrid, DX, DY) of
         none ->
-            do_jump_points(EndGrid, ValidFun, VisitedGrids, CurGrid, T);
+            do_jump_points(EndGrid, ValidFun, CurGrid, T);
         NeighbourGrid ->
-            [NeighbourGrid | do_jump_points(EndGrid, ValidFun, VisitedGrids, CurGrid, T)]
+            [NeighbourGrid | do_jump_points(EndGrid, ValidFun, CurGrid, T)]
     end;
-do_jump_points(_EndGrid, _ValidFun, _VisitedGrids, _CurGrid, []) ->
+do_jump_points(_EndGrid, _ValidFun, _CurGrid, []) ->
     [].
 
-do_jump_gird(EndGrid, ValidFun, VisitedGrids, {X, Y}, DX, DY) ->
+do_jump_gird(EndGrid, ValidFun, {X, Y}, DX, DY) ->
     case {X + DX, Y + DY} of
         EndGrid ->
             ?IF(ValidFun(EndGrid), EndGrid, none);
         NeighbourGrid ->
-            ?IF(jps_util:is_open(NeighbourGrid, VisitedGrids) andalso ValidFun(NeighbourGrid),
-                do_jump_gird_1(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, DX, DY), none)
+            ?IF(ValidFun(NeighbourGrid), do_jump_gird_1(EndGrid, ValidFun, NeighbourGrid, DX, DY), none)
     end.
 
-do_jump_gird_1(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, DX, 0) ->
+do_jump_gird_1(EndGrid, ValidFun, NeighbourGrid, DX, 0) ->
     case check_jump_grid(ValidFun, NeighbourGrid, DX, 0) of
         true ->
             NeighbourGrid;
         false ->
-            do_jump_gird(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, DX, 0)
+            do_jump_gird(EndGrid, ValidFun, NeighbourGrid, DX, 0)
     end;
-do_jump_gird_1(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, 0, DY) ->
+do_jump_gird_1(EndGrid, ValidFun, NeighbourGrid, 0, DY) ->
     case check_jump_grid(ValidFun, NeighbourGrid, 0, DY)
-        orelse do_jump_gird(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, 1, 0) =/= none
-        orelse do_jump_gird(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, -1, 0) =/= none of
+        orelse do_jump_gird(EndGrid, ValidFun, NeighbourGrid, 1, 0) =/= none
+        orelse do_jump_gird(EndGrid, ValidFun, NeighbourGrid, -1, 0) =/= none of
         true ->
             NeighbourGrid;
         false ->
-            do_jump_gird(EndGrid, ValidFun, VisitedGrids, NeighbourGrid, 0, DY)
+            do_jump_gird(EndGrid, ValidFun, NeighbourGrid, 0, DY)
     end.
 
 check_jump_grid(ValidFun, {X, Y}, DX, 0) ->
@@ -77,8 +76,8 @@ check_jump_grid(ValidFun, {X, Y}, 0, DY) ->
 
 -spec g(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> G :: number().
 g(Grid1, Grid2) ->
-    jps_util:g(Grid1, Grid2).
+    jps_heuristic:octile(Grid1, Grid2).
 
 -spec h(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> H :: number().
 h(Grid1, Grid2) ->
-    jps_util:h(Grid1, Grid2).
+    jps_heuristic:manhattan(Grid1, Grid2).
