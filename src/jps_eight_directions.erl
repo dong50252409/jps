@@ -20,7 +20,7 @@
     CurGrid :: jps:grid(), ParentGrid :: jps:grid(), JumpPoints :: [jps:grid()].
 identity_successors(EndGrid, ValidFun, CurGrid, ParentGrid) ->
     Directions = directions(ValidFun, CurGrid, ParentGrid),
-    do_jump_points(EndGrid, ValidFun, CurGrid, Directions).
+    get_neighbour_girds(EndGrid, ValidFun, CurGrid, Directions).
 
 directions(_ValidFun, _CurGrid, parent) ->
     [{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}];
@@ -40,59 +40,64 @@ directions(ValidFun, {X, Y} = CurGrid, ParentGrid) ->
             ?IF(ValidFun({X, Y - DY}), Directions1, [{DX, -DY} | Directions1])
     end.
 
-do_jump_points(EndGrid, ValidFun, CurGrid, [{DX, DY} | T]) ->
-    case do_jump_gird(EndGrid, ValidFun, CurGrid, DX, DY) of
+get_neighbour_girds(EndGrid, ValidFun, CurGrid, [{DX, DY} | T]) ->
+    case get_neighbour_gird(EndGrid, ValidFun, CurGrid, DX, DY) of
         none ->
-            do_jump_points(EndGrid, ValidFun, CurGrid, T);
+            get_neighbour_girds(EndGrid, ValidFun, CurGrid, T);
         NeighbourGrid ->
-            [NeighbourGrid | do_jump_points(EndGrid, ValidFun, CurGrid, T)]
+            [NeighbourGrid | get_neighbour_girds(EndGrid, ValidFun, CurGrid, T)]
     end;
-do_jump_points(_EndGrid, _ValidFun, _CurGrid, []) ->
+get_neighbour_girds(_EndGrid, _ValidFun, _CurGrid, []) ->
     [].
 
-do_jump_gird(EndGrid, ValidFun, {X, Y}, DX, DY) ->
+get_neighbour_gird(EndGrid, ValidFun, {X, Y}, DX, DY) ->
     case {X + DX, Y + DY} of
         EndGrid ->
             ?IF(ValidFun(EndGrid), EndGrid, none);
         {X1, Y1} = NeighbourGrid ->
             case ValidFun(NeighbourGrid) of
-                true when DX =/= 0, DY =/= 0 ->
-                    ?IF(ValidFun({X1, Y}) orelse ValidFun({X, Y1}),
-                        jump_grid_1(EndGrid, ValidFun, NeighbourGrid, DX, DY), none);
+                true when DY =:= 0 ->
+                    ?IF(ValidFun({X1 + DX, Y1}),
+                        horizontal(EndGrid, ValidFun, NeighbourGrid, DX), none);
+                true when DX =:= 0 ->
+                    ?IF(ValidFun({X1, Y1 + DY}),
+                        vertical(EndGrid, ValidFun, NeighbourGrid, DY), none);
                 true ->
-                    ?IF(ValidFun({X1 + DX, Y1 + DY}),
-                        jump_grid_1(EndGrid, ValidFun, NeighbourGrid, DX, DY), none);
+                    ?IF(ValidFun({X1, Y}) orelse ValidFun({X, Y1}),
+                        diagonally(EndGrid, ValidFun, NeighbourGrid, DX, DY), none);
                 false ->
                     none
             end
     end.
 
-jump_grid_1(EndGrid, ValidFun, NeighbourGrid, DX, DY) when DX =:= 0; DY =:= 0 ->
-    case check_jump_grid(ValidFun, NeighbourGrid, DX, DY) of
+horizontal(EndGrid, ValidFun, {X, Y} = NeighbourGrid, DX) ->
+    case not ValidFun({X, Y + 1}) andalso ValidFun({X + DX, Y + 1})
+        orelse not ValidFun({X, Y - 1}) andalso ValidFun({X + DX, Y - 1}) of
         true ->
             NeighbourGrid;
         false ->
-            do_jump_gird(EndGrid, ValidFun, NeighbourGrid, DX, DY)
-    end;
-jump_grid_1(EndGrid, ValidFun, NeighbourGrid, DX, DY) ->
-    case check_jump_grid(ValidFun, NeighbourGrid, DX, DY)
-        orelse do_jump_gird(EndGrid, ValidFun, NeighbourGrid, DX, 0) =/= none
-        orelse do_jump_gird(EndGrid, ValidFun, NeighbourGrid, 0, DY) =/= none of
-        true ->
-            NeighbourGrid;
-        false ->
-            do_jump_gird(EndGrid, ValidFun, NeighbourGrid, DX, DY)
+            get_neighbour_gird(EndGrid, ValidFun, NeighbourGrid, DX, 0)
     end.
 
-check_jump_grid(ValidFun, {X, Y}, DX, 0) ->
-    not ValidFun({X, Y + 1}) andalso ValidFun({X + DX, Y + 1})
-        orelse not ValidFun({X, Y - 1}) andalso ValidFun({X + DX, Y - 1});
-check_jump_grid(ValidFun, {X, Y}, 0, DY) ->
-    not ValidFun({X + 1, Y}) andalso ValidFun({X + 1, Y + DY})
-        orelse not ValidFun({X - 1, Y}) andalso ValidFun({X - 1, Y + DY});
-check_jump_grid(ValidFun, {X, Y}, DX, DY) ->
-    (not ValidFun({X - DX, Y}) andalso ValidFun({X, Y + DY}) andalso ValidFun({X - DX, Y + DY}))
-        orelse (not ValidFun({X, Y - DY}) andalso ValidFun({X + DX, Y}) andalso ValidFun({X + DX, Y - DY})).
+vertical(EndGrid, ValidFun, {X,Y} = NeighbourGrid, DY) ->
+    case not ValidFun({X + 1, Y}) andalso ValidFun({X + 1, Y + DY})
+        orelse not ValidFun({X - 1, Y}) andalso ValidFun({X - 1, Y + DY}) of
+        true ->
+            NeighbourGrid;
+        false ->
+            get_neighbour_gird(EndGrid, ValidFun, NeighbourGrid, 0, DY)
+    end.
+
+diagonally(EndGrid, ValidFun, {X,Y} = NeighbourGrid, DX, DY) ->
+    case (not ValidFun({X - DX, Y}) andalso ValidFun({X, Y + DY}) andalso ValidFun({X - DX, Y + DY}))
+        orelse (not ValidFun({X, Y - DY}) andalso ValidFun({X + DX, Y}) andalso ValidFun({X + DX, Y - DY}))
+        orelse get_neighbour_gird(EndGrid, ValidFun, NeighbourGrid, DX, 0) =/= none
+        orelse get_neighbour_gird(EndGrid, ValidFun, NeighbourGrid, 0, DY) =/= none of
+        true ->
+            NeighbourGrid;
+        false ->
+            get_neighbour_gird(EndGrid, ValidFun, NeighbourGrid, DX, DY)
+    end.
 
 -spec g(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> G :: number().
 g(Grid1, Grid2) ->

@@ -19,12 +19,12 @@
     EndGrid :: jps:grid(), ValidFun :: jps:valid_fun(),
     CurGrid :: jps:grid(), ParentGrid :: jps:grid(), JumpPoints :: [jps:grid()].
 identity_successors(EndGrid, ValidFun, CurGrid, ParentGrid) ->
-    Directions = get_neighbours(CurGrid, ParentGrid),
-    do_jump_points(EndGrid, ValidFun, CurGrid, Directions).
+    Directions = get_directions(CurGrid, ParentGrid),
+    get_neighbour_grids(EndGrid, ValidFun, CurGrid, Directions).
 
-get_neighbours(_CurGrid, parent) ->
+get_directions(_CurGrid, parent) ->
     [{1, 0}, {-1, 0}, {0, 1}, {0, -1}];
-get_neighbours(CurGrid, ParentGrid) ->
+get_directions(CurGrid, ParentGrid) ->
     case jps_util:get_direction(CurGrid, ParentGrid) of
         {DX, 0} ->
             [{0, 1}, {0, -1}, {DX, 0}];
@@ -32,47 +32,51 @@ get_neighbours(CurGrid, ParentGrid) ->
             [{1, 0}, {-1, 0}, {0, DY}]
     end.
 
-do_jump_points(EndGrid, ValidFun, CurGrid, [{DX, DY} | T]) ->
-    case do_jump_gird(EndGrid, ValidFun, CurGrid, DX, DY) of
+get_neighbour_grids(EndGrid, ValidFun, CurGrid, [{DX, DY} | T]) ->
+    case get_neighbour_grid(EndGrid, ValidFun, CurGrid, DX, DY) of
         none ->
-            do_jump_points(EndGrid, ValidFun, CurGrid, T);
+            get_neighbour_grids(EndGrid, ValidFun, CurGrid, T);
         NeighbourGrid ->
-            [NeighbourGrid | do_jump_points(EndGrid, ValidFun, CurGrid, T)]
+            [NeighbourGrid | get_neighbour_grids(EndGrid, ValidFun, CurGrid, T)]
     end;
-do_jump_points(_EndGrid, _ValidFun, _CurGrid, []) ->
+get_neighbour_grids(_EndGrid, _ValidFun, _CurGrid, []) ->
     [].
 
-do_jump_gird(EndGrid, ValidFun, {X, Y}, DX, DY) ->
+get_neighbour_grid(EndGrid, ValidFun, {X, Y}, DX, DY) ->
     case {X + DX, Y + DY} of
         EndGrid ->
             ?IF(ValidFun(EndGrid), EndGrid, none);
         NeighbourGrid ->
-            ?IF(ValidFun(NeighbourGrid), do_jump_gird_1(EndGrid, ValidFun, NeighbourGrid, DX, DY), none)
+            case ValidFun(NeighbourGrid) of
+                true when DX =/= 0 ->
+                    horizontal(EndGrid, ValidFun, NeighbourGrid, DX);
+                true ->
+                    vertical(EndGrid, ValidFun, NeighbourGrid, DY);
+                false ->
+                    none
+            end
     end.
 
-do_jump_gird_1(EndGrid, ValidFun, NeighbourGrid, DX, 0) ->
-    case check_jump_grid(ValidFun, NeighbourGrid, DX, 0) of
+horizontal(EndGrid, ValidFun, {X, Y} = NeighbourGrid, DX) ->
+    case not ValidFun({X - DX, Y + 1}) andalso ValidFun({X, Y + 1})
+        orelse not ValidFun({X - DX, Y - 1}) andalso ValidFun({X, Y - 1}) of
         true ->
             NeighbourGrid;
         false ->
-            do_jump_gird(EndGrid, ValidFun, NeighbourGrid, DX, 0)
-    end;
-do_jump_gird_1(EndGrid, ValidFun, NeighbourGrid, 0, DY) ->
-    case check_jump_grid(ValidFun, NeighbourGrid, 0, DY)
-        orelse do_jump_gird(EndGrid, ValidFun, NeighbourGrid, 1, 0) =/= none
-        orelse do_jump_gird(EndGrid, ValidFun, NeighbourGrid, -1, 0) =/= none of
+            get_neighbour_grid(EndGrid, ValidFun, NeighbourGrid, DX, 0)
+    end.
+
+vertical(EndGrid, ValidFun, {X, Y} = NeighbourGrid, DY) ->
+    case (not ValidFun({X + 1, Y - DY}) andalso ValidFun({X + 1, Y})
+        orelse not ValidFun({X - 1, Y - DY}) andalso ValidFun({X - 1, Y}))
+        orelse get_neighbour_grid(EndGrid, ValidFun, NeighbourGrid, 1, 0) =/= none
+        orelse get_neighbour_grid(EndGrid, ValidFun, NeighbourGrid, -1, 0) =/= none of
         true ->
             NeighbourGrid;
         false ->
-            do_jump_gird(EndGrid, ValidFun, NeighbourGrid, 0, DY)
+            get_neighbour_grid(EndGrid, ValidFun, NeighbourGrid, 0, DY)
     end.
 
-check_jump_grid(ValidFun, {X, Y}, DX, 0) ->
-    not ValidFun({X - DX, Y + 1}) andalso ValidFun({X, Y + 1})
-        orelse not ValidFun({X - DX, Y - 1}) andalso ValidFun({X, Y - 1});
-check_jump_grid(ValidFun, {X, Y}, 0, DY) ->
-    not ValidFun({X + 1, Y - DY}) andalso ValidFun({X + 1, Y})
-        orelse not ValidFun({X - 1, Y - DY}) andalso ValidFun({X - 1, Y}).
 
 -spec g(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> G :: number().
 g(Grid1, Grid2) ->
