@@ -22,5 +22,9 @@ Erlang实现的跳点寻路算法
 -----
 实现并导出 **identity_successors/5、g/2、h/2** 函数
 
-参考：jps_eight_directions.erl、jps_four_directions.erl
+参考：jps_diagonally.erl jps_orthogonal.erl
+
+export and implement **identity_successors/5、g/2、h/2** functions
+
+sample:jps_diagonally.erl jps_orthogonal.erl
 
