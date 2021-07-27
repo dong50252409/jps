@@ -33,15 +33,20 @@
 %%%======================================================================
 -spec search(StartGrid :: grid(), EndGrid :: grid(), ValidFun :: valid_fun(), Options :: options()) -> result().
 search(StartGrid, EndGrid, ValidFun, Options) ->
-    G = 0,
-    OpenGrids = gb_trees:empty(),
-    VisitedGrids = #{StartGrid => -1},
-    JPSMod = proplists:get_value(jps_mod, Options, jps_eight_directions),
-    JumpGrids = JPSMod:identity_successors(EndGrid, ValidFun, StartGrid, parent),
-%%    draw_map(JumpGrids),
-    {OpenGrids1, VisitedGrids1} = add_jump_grids(EndGrid, JPSMod, StartGrid, G, [StartGrid], OpenGrids, VisitedGrids, JumpGrids),
-    MaxLimit = proplists:get_value(max_limit, Options, 16#FFFF),
-    do_search(EndGrid, ValidFun, JPSMod, OpenGrids1, VisitedGrids1, MaxLimit).
+    case ValidFun(EndGrid) of
+        true ->
+            G = 0,
+            OpenGrids = gb_trees:empty(),
+            VisitedGrids = #{StartGrid => -1},
+            JPSMod = proplists:get_value(jps_mod, Options, jps_diagonally),
+            JumpGrids = JPSMod:identity_successors(EndGrid, ValidFun, StartGrid, parent),
+%%            draw_map(JumpGrids),
+            {OpenGrids1, VisitedGrids1} = add_jump_grids(EndGrid, JPSMod, StartGrid, G, [StartGrid], OpenGrids, VisitedGrids, JumpGrids),
+            MaxLimit = proplists:get_value(max_limit, Options, 16#FFFF),
+            do_search(EndGrid, ValidFun, JPSMod, OpenGrids1, VisitedGrids1, MaxLimit);
+        false ->
+            none
+    end.
 
 -spec get_full_path(JumpPoints :: [grid()]) -> {full_path, Path :: [grid()]}.
 get_full_path(JumpPoints) ->

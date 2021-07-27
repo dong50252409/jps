@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 19. 7月 2021 15:31
 %%%-------------------------------------------------------------------
--module(jps_eight_directions).
+-module(jps_diagonally).
 
 -behavior(jps).
 
@@ -29,7 +29,7 @@ directions(ValidFun, {X, Y} = CurGrid, ParentGrid) ->
         {DX, 0} ->
             Directions = [{DX, 0}],
             Directions1 = ?IF(ValidFun({X, Y + 1}), Directions, [{DX, 1} | Directions]),
-            ?IF(ValidFun({X, Y - 1}), Directions1, [{DX, -1} | Directions]);
+            ?IF(ValidFun({X, Y - 1}), Directions1, [{DX, -1} | Directions1]);
         {0, DY} ->
             Directions = [{0, DY}],
             Directions1 = ?IF(ValidFun({X + 1, Y}), Directions, [{1, DY} | Directions]),

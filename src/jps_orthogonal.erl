@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 19. 7月 2021 15:31
 %%%-------------------------------------------------------------------
--module(jps_four_directions).
+-module(jps_orthogonal).
 
 -behavior(jps).
 
