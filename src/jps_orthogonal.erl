@@ -80,7 +80,7 @@ vertical(EndGrid, ValidFun, {X, Y} = NeighbourGrid, DY) ->
 
 -spec g(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> G :: number().
 g(Grid1, Grid2) ->
-    jps_heuristic:octile(Grid1, Grid2).
+    jps_heuristic:manhattan(Grid1, Grid2).
 
 -spec h(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> H :: number().
 h(Grid1, Grid2) ->
