@@ -25,7 +25,7 @@ octile({X1, Y1}, {X2, Y2}) ->
     F = 0.4142135,
     DX = erlang:abs(X1 - X2),
     DY = erlang:abs(Y1 - Y2),
-    ?IF(DX < DY, F * DX + DY, F * DY + DX).
+    F * erlang:min(DX, DY) + erlang:max(DX, DY).
 
 chebyshev({X1, Y1}, {X2, Y2}) ->
     DX = erlang:abs(X1 - X2),
