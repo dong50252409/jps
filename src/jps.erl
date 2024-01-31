@@ -21,7 +21,7 @@
 -type visited_grids() :: #{JumpPointGrid :: grid() => -1 | non_neg_integer()}.
 -type result() :: {jump_points, [grid()]}|none|max_limited.
 -type max_limit() :: {max_limit, non_neg_integer()}.
--type option() :: max_limit() |{jps_mod, module()}.
+-type option() :: max_limit() |{jps_mod, jps_quadrilateral|jps_polygonal}.
 -type options() :: [option()].
 
 -callback(identity_successors(EndGrid :: grid(), ValidFun :: valid_fun(),
