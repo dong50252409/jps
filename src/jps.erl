@@ -38,7 +38,7 @@ search(StartGrid, EndGrid, ValidFun, Options) ->
             G = 0,
             OpenGrids = gb_trees:empty(),
             VisitedGrids = #{StartGrid => -1},
-            JPSMod = proplists:get_value(jps_mod, Options, jps_diagonally),
+            JPSMod = proplists:get_value(jps_mod, Options, jps_polygonal),
             JumpGrids = JPSMod:identity_successors(EndGrid, ValidFun, StartGrid, parent),
 %%            draw_map(JumpGrids),
             {OpenGrids1, VisitedGrids1} = add_jump_grids(EndGrid, JPSMod, StartGrid, G, [StartGrid], OpenGrids, VisitedGrids, JumpGrids),
