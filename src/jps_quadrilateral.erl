@@ -79,9 +79,9 @@ vertical(EndGrid, ValidFun, {X, Y} = NeighbourGrid, DY) ->
 
 
 -spec g(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> G :: number().
-g(Grid1, Grid2) ->
-    jps_heuristic:manhattan(Grid1, Grid2).
+g({X1, Y1}, {X2, Y2}) ->
+    erlang:abs(X1 - X2) + erlang:abs(Y1 - Y2).
 
 -spec h(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> H :: number().
-h(Grid1, Grid2) ->
-    jps_heuristic:manhattan(Grid1, Grid2).
+h({X1, Y1}, {X2, Y2}) ->
+    erlang:abs(X1 - X2) + erlang:abs(Y1 - Y2).

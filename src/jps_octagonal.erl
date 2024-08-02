@@ -2,11 +2,11 @@
 %%% @author dy
 %%% @copyright (C) 2021, <COMPANY>
 %%% @doc
-%%% 多边形跳点寻路
+%%% 八边形跳点寻路
 %%% @end
 %%% Created : 19. 7月 2021 15:31
 %%%-------------------------------------------------------------------
--module(jps_polygonal).
+-module(jps_octagonal).
 
 -behavior(jps).
 
@@ -100,9 +100,13 @@ diagonally(EndGrid, ValidFun, {X,Y} = NeighbourGrid, DX, DY) ->
     end.
 
 -spec g(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> G :: number().
-g(Grid1, Grid2) ->
-    jps_heuristic:chebyshev(Grid1, Grid2).
+g({X1, Y1}, {X2, Y2}) ->
+    DX = erlang:abs(X1 - X2),
+    DY = erlang:abs(Y1 - Y2),
+    erlang:max(DX, DY).
 
 -spec h(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> H :: number().
-h(Grid1, Grid2) ->
-    jps_heuristic:chebyshev(Grid1, Grid2).
+h({X1, Y1}, {X2, Y2}) ->
+    DX = erlang:abs(X1 - X2),
+    DY = erlang:abs(Y1 - Y2),
+    erlang:max(DX, DY).

@@ -2,6 +2,7 @@ jps
 =====
 
 Erlang实现的跳点寻路算法
+A Jump Point Search algorithm implemented purely in Erlang.
 
 构建 Build
 -----

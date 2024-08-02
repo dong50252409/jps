@@ -1,6 +1,6 @@
 {application, jps, [
-    {description, "Jump point search implement of Erlang"},
-    {vsn, "0.1.0"},
+    {description, "A Jump Point Search algorithm implemented purely in Erlang."},
+    {vsn, "1.0.0"},
     {registered, []},
     {applications, [
         kernel,
