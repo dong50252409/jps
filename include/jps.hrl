@@ -18,4 +18,27 @@
     end
 )).
 
+-define(DIRECTIONS(X1, Y1, X2, Y2), (
+    if
+        X1 > X2 ->
+            if 
+                Y1 > Y2 -> {1, 1};
+                Y1 < Y2 -> {1, -1};
+                true -> {1, 0}
+            end;
+        X1 < X2 ->
+            if
+                Y1 > Y2 -> {-1, 1};
+                Y1 < Y2 -> {-1, -1};
+                true -> {-1, 0}
+            end;
+        true ->
+            if
+                Y1 > Y2 -> {0, 1};
+                Y1 < Y2 -> {0, -1};
+                true -> {0, 0}
+            end
+    end
+)).
+
 -endif.

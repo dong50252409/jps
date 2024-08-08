@@ -24,16 +24,24 @@ identity_successors(EndGrid, ValidFun, CurGrid, ParentGrid) ->
 
 directions(_ValidFun, _CurGrid, parent) ->
     [{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}];
-directions(ValidFun, {X, Y} = CurGrid, ParentGrid) ->
-    case jps_util:get_direction(CurGrid, ParentGrid) of
-        {DX, 0} ->
-            Directions = [{DX, 0}],
-            Directions1 = ?IF(ValidFun({X, Y + 1}), Directions, [{DX, 1} | Directions]),
-            ?IF(ValidFun({X, Y - 1}), Directions1, [{DX, -1} | Directions1]);
-        {0, DY} ->
-            Directions = [{0, DY}],
-            Directions1 = ?IF(ValidFun({X + 1, Y}), Directions, [{1, DY} | Directions]),
-            ?IF(ValidFun({X - 1, Y}), Directions1, [{-1, DY} | Directions1]);
+directions(ValidFun, {X, Y} = _CurGrid, {PX, PY} = _ParentGrid) ->
+    case ?DIRECTIONS(X, Y, PX, PY) of
+        {1, 0} ->
+            Directions = [{1, 0}],
+            Directions1 = ?IF(ValidFun({X, Y + 1}), Directions, [{1, 1} | Directions]),
+            ?IF(ValidFun({X, Y - 1}), Directions1, [{1, -1} | Directions1]);
+        {-1, 0} ->
+            Directions = [{-1, 0}],
+            Directions1 = ?IF(ValidFun({X, Y + 1}), Directions, [{-1, 1} | Directions]),
+            ?IF(ValidFun({X, Y - 1}), Directions1, [{-1, -1} | Directions1]);
+        {0, 1} ->
+            Directions = [{0, 1}],
+            Directions1 = ?IF(ValidFun({X + 1, Y}), Directions, [{1, 1} | Directions]),
+            ?IF(ValidFun({X - 1, Y}), Directions1, [{-1, 1} | Directions1]);
+        {0, -1} ->
+            Directions = [{0, -1}],
+            Directions1 = ?IF(ValidFun({X + 1, Y}), Directions, [{1, -1} | Directions]),
+            ?IF(ValidFun({X - 1, Y}), Directions1, [{-1, -1} | Directions1]);
         {DX, DY} ->
             Directions = [{0, DY}, {DX, 0}, {DX, DY}],
             Directions1 = ?IF(ValidFun({X - DX, Y}), Directions, [{-DX, DY} | Directions]),

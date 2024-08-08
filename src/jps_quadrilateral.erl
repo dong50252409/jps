@@ -24,8 +24,8 @@ identity_successors(EndGrid, ValidFun, CurGrid, ParentGrid) ->
 
 get_directions(_CurGrid, parent) ->
     [{1, 0}, {-1, 0}, {0, 1}, {0, -1}];
-get_directions(CurGrid, ParentGrid) ->
-    case jps_util:get_direction(CurGrid, ParentGrid) of
+get_directions({X, Y} = _CurGrid, {PX, PY} = _ParentGrid) ->
+    case ?DIRECTIONS(X, Y, PX, PY) of
         {DX, 0} ->
             [{0, 1}, {0, -1}, {DX, 0}];
         {0, DY} ->
