@@ -1,12 +1,12 @@
 %%%-------------------------------------------------------------------
-%%% @author gz1417
+%%% @author dy
 %%% @copyright (C) 2021, <COMPANY>
 %%% @doc
-%%% 4方向跳点寻路
+%%% 四边形跳点寻路
 %%% @end
 %%% Created : 19. 7月 2021 15:31
 %%%-------------------------------------------------------------------
--module(jps_orthogonal).
+-module(jps_quadrilateral).
 
 -behavior(jps).
 
@@ -79,9 +79,9 @@ vertical(EndGrid, ValidFun, {X, Y} = NeighbourGrid, DY) ->
 
 
 -spec g(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> G :: number().
-g(Grid1, Grid2) ->
-    jps_heuristic:octile(Grid1, Grid2).
+g({X1, Y1}, {X2, Y2}) ->
+    erlang:abs(X1 - X2) + erlang:abs(Y1 - Y2).
 
 -spec h(Grid1 :: jps:grid(), Grid2 :: jps:grid()) -> H :: number().
-h(Grid1, Grid2) ->
-    jps_heuristic:manhattan(Grid1, Grid2).
+h({X1, Y1}, {X2, Y2}) ->
+    erlang:abs(X1 - X2) + erlang:abs(Y1 - Y2).

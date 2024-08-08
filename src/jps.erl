@@ -1,5 +1,5 @@
 %%%-------------------------------------------------------------------
-%%% @author gz1417
+%%% @author dy
 %%% @copyright (C) 2021, <COMPANY>
 %%% @doc
 %%% 跳点寻路
@@ -21,7 +21,7 @@
 -type visited_grids() :: #{JumpPointGrid :: grid() => -1 | non_neg_integer()}.
 -type result() :: {jump_points, [grid()]}|none|max_limited.
 -type max_limit() :: {max_limit, non_neg_integer()}.
--type option() :: max_limit() |{jps_mod, module()}.
+-type option() :: max_limit() |{jps_mod, jps_quadrilateral|jps_octagonal}.
 -type options() :: [option()].
 
 -callback(identity_successors(EndGrid :: grid(), ValidFun :: valid_fun(),
@@ -38,7 +38,7 @@ search(StartGrid, EndGrid, ValidFun, Options) ->
             G = 0,
             OpenGrids = gb_trees:empty(),
             VisitedGrids = #{StartGrid => -1},
-            JPSMod = proplists:get_value(jps_mod, Options, jps_diagonally),
+            JPSMod = proplists:get_value(jps_mod, Options, jps_octagonal),
             JumpGrids = JPSMod:identity_successors(EndGrid, ValidFun, StartGrid, parent),
 %%            draw_map(JumpGrids),
             {OpenGrids1, VisitedGrids1} = add_jump_grids(EndGrid, JPSMod, StartGrid, G, [StartGrid], OpenGrids, VisitedGrids, JumpGrids),
