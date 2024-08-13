@@ -25,7 +25,7 @@ identity_successors(EndGrid, ValidFun, CurGrid, ParentGrid) ->
 directions(_ValidFun, _CurGrid, parent) ->
     [{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}];
 directions(ValidFun, {X, Y} = _CurGrid, {PX, PY} = _ParentGrid) ->
-    case ?DIRECTIONS(X, Y, PX, PY) of
+    case ?DIRECTION(X, Y, PX, PY) of
         {1, 0} ->
             Directions = [{1, 0}],
             Directions1 = ?IF(ValidFun({X, Y + 1}), Directions, [{1, 1} | Directions]),

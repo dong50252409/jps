@@ -18,7 +18,7 @@
     end
 )).
 
--define(DIRECTIONS(X1, Y1, X2, Y2), (
+-define(DIRECTION(X1, Y1, X2, Y2), (
     if
         X1 > X2 ->
             if 

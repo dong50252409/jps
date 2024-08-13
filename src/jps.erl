@@ -97,8 +97,8 @@ add_jump_grids(EndGrid, JPSMod, ParentGrid, G, Path, OpenGrids, VisitedGrids, [G
 add_jump_grids(_EndGrid, _JPSMod, _ParentGrid, _G, _Path, OpenGrids, VisitedGrids, []) ->
     {OpenGrids, VisitedGrids}.
 
-get_full_path_1([Grid1, Grid2 | T], Path) ->
-    {DX, DY} = jps_util:get_direction(Grid2, Grid1),
+get_full_path_1([{X1, Y1} = Grid1, {X2, Y2} = Grid2 | T], Path) ->
+    {DX, DY} = ?DIRECTION(X2, Y2, X1, Y1),
     Path1 = get_full_path_2(Grid1, Grid2, DX, DY, Path),
     get_full_path_1([Grid2 | T], Path1);
 get_full_path_1([_], Path) ->
